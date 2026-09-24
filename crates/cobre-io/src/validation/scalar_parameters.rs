@@ -134,7 +134,8 @@ fn hydro_id_of(c: ComputedParameter) -> EntityId {
         | ComputedParameter::SpecificProductivity { hydro_id }
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
-        | ComputedParameter::MaxStoredEnergy { hydro_id } => hydro_id,
+        | ComputedParameter::MaxStoredEnergy { hydro_id }
+        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => hydro_id,
     }
 }
 

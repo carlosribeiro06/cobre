@@ -1731,6 +1731,7 @@ mod parameter_resolution_tests {
             &stage_to_season,
             &stage_ids,
             &vec![1usize; n_stages],
+            &vec![730.0; n_stages],
             1_000_000.0,
         )
         .expect("empty_resolved_params: valid")
@@ -1760,6 +1761,7 @@ mod parameter_resolution_tests {
             &stage_to_season,
             &stage_ids,
             &vec![1usize; n_stages],
+            &vec![730.0; n_stages],
             1_000_000.0,
         )
         .expect("constant_param_resolved: valid")
@@ -1786,6 +1788,7 @@ mod parameter_resolution_tests {
             &stage_to_season,
             &stage_ids,
             &vec![1usize; n_stages],
+            &vec![730.0; n_stages],
             1_000_000.0,
         )
         .expect("per_stage_param_resolved: valid")

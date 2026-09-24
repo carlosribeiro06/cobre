@@ -71,6 +71,7 @@ fn scalar_parameters_resolution_is_declaration_order_invariant() {
 
     let order_a = make_params(&[0, 1, 2, 3]);
     let order_b = make_params(&[3, 1, 0, 2]);
+    let stage_total_hours: [f64; 4] = [730.0; 4];
 
     let resolved_a = build_resolved_parameters(
         &order_a,
@@ -80,6 +81,7 @@ fn scalar_parameters_resolution_is_declaration_order_invariant() {
         &stage_to_season,
         &stage_ids,
         &stage_block_counts,
+        &stage_total_hours,
         1_000_000.0,
     )
     .expect("ResolvedParameters builds for order_a");
@@ -91,6 +93,7 @@ fn scalar_parameters_resolution_is_declaration_order_invariant() {
         &stage_to_season,
         &stage_ids,
         &stage_block_counts,
+        &stage_total_hours,
         1_000_000.0,
     )
     .expect("ResolvedParameters builds for order_b");

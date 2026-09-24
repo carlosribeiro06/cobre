@@ -134,6 +134,17 @@ pub enum ComputedParameter {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
+    /// Scaled integrated accumulated productivity for stored-energy constraints.
+    ///
+    /// Returns `ρ_acum_integrado / τ` where `τ = stage_hours × M3S_TO_HM3`.
+    /// Unit: \[MWh/hm³\]. Multiply by storage \[hm³\] to get stored energy \[MWh\].
+    ///
+    /// Used as the coefficient in VminOP (minimum stored energy) constraints:
+    /// `Σ scaled_productivity(h) × storage_final(h) ≥ E_min`.
+    IntegratedAccumulatedProductivityScaled {
+        /// Hydro plant identifier.
+        hydro_id: EntityId,
+    },
 }
 
 /// How the numeric value of a [`ScalarParameter`] is determined at solve time.
@@ -475,12 +486,15 @@ mod tests {
             ComputedParameter::MaxStoredEnergy {
                 hydro_id: EntityId(10),
             },
+            ComputedParameter::IntegratedAccumulatedProductivityScaled {
+                hydro_id: EntityId(11),
+            },
         ];
 
         assert_eq!(
             variants.len(),
-            10,
-            "ComputedParameter must have exactly 10 variants"
+            11,
+            "ComputedParameter must have exactly 11 variants"
         );
 
         // No `_` arm: adding a variant without updating here is a compile error.
@@ -500,6 +514,9 @@ mod tests {
                     "IntegratedAccumulatedProductivity"
                 }
                 ComputedParameter::MaxStoredEnergy { .. } => "MaxStoredEnergy",
+                ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
+                    "IntegratedAccumulatedProductivityScaled"
+                }
             };
         }
     }

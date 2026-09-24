@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/generic_parameters.schema.json",
+  "scalar_parameters": [
+    {
+      "id": 1,
+      "name": "rho_acum_h0",
+      "kind": "computed",
+      "computed_spec": {
+        "tag": "integrated_accumulated_productivity_scaled",
+        "hydro_id": 0
+      }
+    }
+  ]
+}

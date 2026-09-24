@@ -715,6 +715,12 @@ fn build_energy_conversion_and_resolved_parameters(
         .filter(|s| s.id >= 0)
         .map(|s| s.blocks.len())
         .collect();
+    let stage_total_hours: Vec<f64> = system
+        .stages()
+        .iter()
+        .filter(|s| s.id >= 0)
+        .map(|s| s.blocks.iter().map(|b| b.duration_hours).sum())
+        .collect();
     let resolved_parameters = build_resolved_parameters(
         scalar_parameters,
         &energy_conversion,
@@ -723,6 +729,7 @@ fn build_energy_conversion_and_resolved_parameters(
         &stage_to_season,
         &study_stage_ids,
         &stage_block_counts,
+        &stage_total_hours,
         cost_scale_factor,
     )
     .map_err(|e| SddpError::Validation(e.to_string()))?;
