@@ -252,12 +252,18 @@ pub fn build_resolved_parameters(
     stage_to_season: &[i32],
     stage_ids: &[StageId],
     stage_block_counts: &[usize],
+    stage_total_hours: &[f64],
     cost_scale_factor: f64,
 ) -> Result<ResolvedParameters, ResolvedParametersError> {
     debug_assert_eq!(
         stage_block_counts.len(),
         stage_ids.len(),
         "stage_block_counts must carry one block count per study stage"
+    );
+    debug_assert_eq!(
+        stage_total_hours.len(),
+        stage_ids.len(),
+        "stage_total_hours must carry one total-hours value per study stage"
     );
     let hydro_index: HashMap<EntityId, usize> = hydros
         .iter()
@@ -268,6 +274,7 @@ pub fn build_resolved_parameters(
         ids: stage_ids,
         to_season: stage_to_season,
         block_counts: stage_block_counts,
+        total_hours: stage_total_hours,
     };
 
     let mut per_param: Vec<Vec<Vec<f64>>> = Vec::with_capacity(parameters.len());
@@ -319,6 +326,7 @@ struct StageAxis<'a> {
     ids: &'a [StageId],
     to_season: &'a [i32],
     block_counts: &'a [usize],
+    total_hours: &'a [f64],
 }
 
 /// Resolve a single [`ParameterKind`] into the jagged `stage → block` storage.
@@ -374,6 +382,7 @@ fn resolve_kind(
                 *cp,
                 name,
                 stage_axis.ids,
+                stage_axis.total_hours,
                 energy_conversion,
                 override_table,
                 hydros,
@@ -459,6 +468,7 @@ fn resolve_computed(
     cp: ComputedParameter,
     name: &str,
     stage_ids: &[StageId],
+    stage_total_hours: &[f64],
     energy_conversion: &EnergyConversionSet,
     override_table: &HydroEnergyProductivityOverride,
     hydros: &[Hydro],
@@ -474,7 +484,8 @@ fn resolve_computed(
         | ComputedParameter::SpecificProductivity { hydro_id }
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
-        | ComputedParameter::MaxStoredEnergy { hydro_id } => hydro_id,
+        | ComputedParameter::MaxStoredEnergy { hydro_id }
+        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => hydro_id,
     };
 
     let hydro_idx = hydro_index.get(&hydro_id).copied().ok_or_else(|| {
@@ -558,6 +569,18 @@ fn resolve_computed(
             ComputedParameter::MaxStoredEnergy { .. } => {
                 energy_conversion.integrated_accumulated_productivity(hydro_idx, t)
                     * (hydro.max_storage_hm3 - hydro.min_storage_hm3)
+            }
+            ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
+                let rho_integrated =
+                    energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
+                let hours = stage_total_hours[t];
+                debug_assert!(
+                    hours > 0.0,
+                    "stage_total_hours[{t}] must be > 0 (Rule 52 validation)"
+                );
+                const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
+                let tau = hours * M3S_TO_HM3;
+                rho_integrated / tau
             }
         };
         values.push(value);
@@ -695,6 +718,12 @@ mod tests {
         vec![1; n_stages]
     }
 
+    /// Default stage hours (730.0 hours ≈ one month) for tests that need a
+    /// `stage_total_hours` slice but don't exercise the scaled parameter.
+    fn default_stage_hours(n_stages: usize) -> Vec<f64> {
+        vec![730.0; n_stages]
+    }
+
     /// Return `(hydros, energy_conversion, override_table, stage_to_season, stage_ids)`
     /// for tests that need a consistent set of inputs.
     fn make_setup_inputs(
@@ -751,6 +780,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(4),
+            &default_stage_hours(4),
             1_000_000.0,
         )
         .unwrap();
@@ -786,6 +816,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(3),
+            &default_stage_hours(3),
             1_000_000.0,
         );
 
@@ -824,6 +855,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(3),
+            &default_stage_hours(3),
             1_000_000.0,
         )
         .unwrap();
@@ -860,6 +892,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -937,6 +970,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1003,6 +1037,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1060,6 +1095,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1124,6 +1160,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(1),
+            &default_stage_hours(1),
             1_000_000.0,
         )
         .unwrap();
@@ -1171,6 +1208,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         );
 
@@ -1249,6 +1287,7 @@ mod tests {
             &[0i32],
             &stage_ids,
             &one_block_per_stage(1),
+            &default_stage_hours(1),
             1_000_000.0,
         )
         .expect("tag resolves");
@@ -1308,6 +1347,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1319,6 +1359,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1362,6 +1403,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         );
 
@@ -1411,6 +1453,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1432,6 +1475,66 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
+    // IntegratedAccumulatedProductivityScaled: divides by τ = hours × M3S_TO_HM3
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn integrated_accumulated_productivity_scaled_divides_by_tau() {
+        let n_stages = 4;
+        let (hydros, base_ec, override_table, stage_to_season, stage_ids) =
+            make_setup_inputs(n_stages);
+
+        let integrated_accumulated: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| {
+                (0..n_stages)
+                    .map(|t| 100.0 + h as f64 * 10.0 + t as f64)
+                    .collect()
+            })
+            .collect();
+        let integrated_equivalent: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| (0..n_stages).map(|t| 50.0 + h as f64 + t as f64).collect())
+            .collect();
+        let energy_conversion =
+            base_ec.with_integrated(integrated_equivalent, integrated_accumulated.clone());
+
+        let stage_hours: Vec<f64> = vec![730.0, 672.0, 744.0, 720.0];
+
+        let params = vec![make_param(
+            0,
+            ParameterKind::Computed {
+                computed_spec: ComputedParameter::IntegratedAccumulatedProductivityScaled {
+                    hydro_id: EntityId(0),
+                },
+            },
+        )];
+
+        let table = build_resolved_parameters(
+            &params,
+            &energy_conversion,
+            &override_table,
+            &hydros,
+            &stage_to_season,
+            &stage_ids,
+            &one_block_per_stage(n_stages),
+            &stage_hours,
+            1_000_000.0,
+        )
+        .unwrap();
+
+        const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
+        for t in 0..n_stages {
+            let rho_integrated = integrated_accumulated[0][t];
+            let tau = stage_hours[t] * M3S_TO_HM3;
+            let expected = rho_integrated / tau;
+            assert!(
+                (table.get(EntityId(0), t, 0) - expected).abs() < 1e-12,
+                "stage {t}: expected {expected}, got {}",
+                table.get(EntityId(0), t, 0)
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Empty parameter slice: n_stages = 0 does not panic
     // -------------------------------------------------------------------------
 
@@ -1441,7 +1544,7 @@ mod tests {
         let overrides = HydroEnergyProductivityOverride::default();
 
         let table =
-            build_resolved_parameters(&[], &ec, &overrides, &[], &[], &[], &[], 1_000_000.0)
+            build_resolved_parameters(&[], &ec, &overrides, &[], &[], &[], &[], &[], 1_000_000.0)
                 .unwrap();
         // Nothing to query — just verify it doesn't panic.
         let _ = table;
@@ -1470,6 +1573,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             block_counts,
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
     }
@@ -1674,6 +1778,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1733,6 +1838,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1818,6 +1924,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1829,6 +1936,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();
@@ -1896,6 +2004,7 @@ mod tests {
             &stage_to_season,
             &stage_ids,
             &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
             1_000_000.0,
         )
         .unwrap();

@@ -182,6 +182,24 @@
             "hydro_id"
           ],
           "type": "object"
+        },
+        {
+          "description": "Integrated accumulated productivity scaled by stage duration:\n`integrated_accumulated_productivity / (stage_hours * M3S_TO_HM3)`.\nOutput unit is `[MWh/hm³]` — the stored-energy coefficient used in\nVminOP constraints.",
+          "properties": {
+            "hydro_id": {
+              "$ref": "#/$defs/EntityId",
+              "description": "Hydro plant identifier."
+            },
+            "tag": {
+              "const": "integrated_accumulated_productivity_scaled",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tag",
+            "hydro_id"
+          ],
+          "type": "object"
         }
       ]
     },

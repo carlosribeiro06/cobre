@@ -69,6 +69,8 @@ pub enum BroadcastComputedParameter {
     IntegratedAccumulatedProductivity(EntityId),
     /// Maximum stored energy over the physical per-stage storage range.
     MaxStoredEnergy(EntityId),
+    /// Scaled integrated accumulated productivity (stored-energy coefficient).
+    IntegratedAccumulatedProductivityScaled(EntityId),
 }
 
 impl From<&ScalarParameter> for BroadcastScalarParameter {
@@ -142,6 +144,9 @@ impl From<ComputedParameter> for BroadcastComputedParameter {
                 Self::IntegratedAccumulatedProductivity(hydro_id)
             }
             ComputedParameter::MaxStoredEnergy { hydro_id } => Self::MaxStoredEnergy(hydro_id),
+            ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => {
+                Self::IntegratedAccumulatedProductivityScaled(hydro_id)
+            }
         }
     }
 }
@@ -174,6 +179,9 @@ impl From<BroadcastComputedParameter> for ComputedParameter {
             }
             BroadcastComputedParameter::MaxStoredEnergy(hydro_id) => {
                 Self::MaxStoredEnergy { hydro_id }
+            }
+            BroadcastComputedParameter::IntegratedAccumulatedProductivityScaled(hydro_id) => {
+                Self::IntegratedAccumulatedProductivityScaled { hydro_id }
             }
         }
     }

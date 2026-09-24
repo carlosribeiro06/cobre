@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/buses.schema.json",
+  "buses": [
+    {
+      "id": 0,
+      "name": "BUS0",
+      "operational_start_date": "2020-01-01"
+    }
+  ]
+}
