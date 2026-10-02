@@ -9,6 +9,16 @@
         "tag": "integrated_accumulated_productivity_scaled",
         "hydro_id": 0
       }
+    },
+    {
+      "id": 2,
+      "name": "bound_h0",
+      "kind": "computed",
+      "computed_spec": {
+        "tag": "scaled_max_stored_energy",
+        "hydro_id": 0,
+        "scale_factors": [[0, 25], [1, 25]]
+      }
     }
   ]
 }
