@@ -379,7 +379,7 @@ fn resolve_kind(
 
         ParameterKind::Computed { computed_spec: cp } => {
             let per_stage = resolve_computed(
-                *cp,
+                cp.clone(),
                 name,
                 stage_axis.ids,
                 stage_axis.total_hours,

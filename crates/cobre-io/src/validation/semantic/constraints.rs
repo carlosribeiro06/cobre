@@ -79,8 +79,8 @@ pub(super) fn check_productivity_tag_pairing(data: &ParsedData, ctx: &mut Valida
     let computed: HashMap<EntityId, ComputedParameter> = data
         .scalar_parameters
         .iter()
-        .filter_map(|p| match p.kind {
-            ParameterKind::Computed { computed_spec } => Some((p.id, computed_spec)),
+        .filter_map(|p| match &p.kind {
+            ParameterKind::Computed { computed_spec } => Some((p.id, computed_spec.clone())),
             _ => None,
         })
         .collect();

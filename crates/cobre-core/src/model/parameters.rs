@@ -70,11 +70,11 @@ pub enum CoefficientRef {
 ///     hydro_id: EntityId(1),
 /// };
 ///
-/// // ComputedParameter is Copy:
-/// let copy = param;
-/// assert_eq!(param, copy);
+/// // ComputedParameter is Clone:
+/// let cloned = param.clone();
+/// assert_eq!(param, cloned);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(tag = "tag", rename_all = "snake_case"))]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
