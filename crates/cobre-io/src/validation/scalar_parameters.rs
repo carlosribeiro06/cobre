@@ -71,7 +71,7 @@ fn check_computed_hydro_references(
 
 /// Validates `ScaledMaxStoredEnergy` computed parameters:
 /// - `scale_factors.len() == n_stages`
-/// - stage_ids are contiguous starting from 0
+/// - `stage_ids` are contiguous starting from 0
 /// - all percentage values are finite
 fn check_scaled_max_stored_energy(
     parameters: &[ScalarParameter],
@@ -100,7 +100,7 @@ fn check_scaled_max_stored_energy(
 
             // Check stage_ids are contiguous from 0
             for (expected_idx, (stage_id, _)) in scale_factors.iter().enumerate() {
-                #[allow(clippy::cast_possible_wrap)]
+                #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
                 let expected = expected_idx as i32;
                 if *stage_id != expected {
                     ctx.add_error(

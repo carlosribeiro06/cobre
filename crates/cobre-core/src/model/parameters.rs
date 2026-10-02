@@ -137,15 +137,15 @@ pub enum ComputedParameter {
     /// Scaled integrated accumulated productivity for stored-energy constraints.
     ///
     /// Returns `ρ_acum_integrado / τ` where `τ = stage_hours × M3S_TO_HM3`.
-    /// Unit: \[MWh/hm³\]. Multiply by storage \[hm³\] to get stored energy \[MWh\].
+    /// Unit: \[`MWh`/hm³\]. Multiply by storage \[hm³\] to get stored energy \[`MWh`\].
     ///
-    /// Used as the coefficient in VminOP (minimum stored energy) constraints:
+    /// Used as the coefficient in `VminOP` (minimum stored energy) constraints:
     /// `Σ scaled_productivity(h) × storage_final(h) ≥ E_min`.
     IntegratedAccumulatedProductivityScaled {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
-    /// Scaled maximum stored energy for VminOP constraint bounds.
+    /// Scaled maximum stored energy for `VminOP` constraint bounds.
     ///
     /// Computes `(scale_factors[s] / 100) × ρ_acum_integrado(h, s) × (Vmax(h) - Vmin(h))`.
     ///
@@ -154,7 +154,7 @@ pub enum ComputedParameter {
     /// 100 internally to get the decimal fraction.
     ///
     /// Unit: same as `MaxStoredEnergy` — productivity × volume, suitable for
-    /// comparison with `ρ × useful_volume` terms in VminOP constraints.
+    /// comparison with `ρ × useful_volume` terms in `VminOP` constraints.
     ScaledMaxStoredEnergy {
         /// Hydro plant identifier.
         hydro_id: EntityId,
