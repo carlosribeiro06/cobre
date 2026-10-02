@@ -1,7 +1,7 @@
 {
   "$defs": {
     "ComputedParameter": {
-      "description": "A Cobre-computed quantity indexed by hydro plant.\n\nEach variant names a scalar quantity that the resolver derives from hydro\ngeometry and operational data. All variants carry a single `hydro_id` field\nidentifying the hydro plant.\n\n# Examples\n\n```\nuse cobre_core::{ComputedParameter, EntityId};\n\nlet param = ComputedParameter::EquivalentProductivity {\n    hydro_id: EntityId(1),\n};\n\n// ComputedParameter is Copy:\nlet copy = param;\nassert_eq!(param, copy);\n```",
+      "description": "A Cobre-computed quantity indexed by hydro plant.\n\nEach variant names a scalar quantity that the resolver derives from hydro\ngeometry and operational data. All variants carry a single `hydro_id` field\nidentifying the hydro plant.\n\n# Examples\n\n```\nuse cobre_core::{ComputedParameter, EntityId};\n\nlet param = ComputedParameter::EquivalentProductivity {\n    hydro_id: EntityId(1),\n};\n\n// ComputedParameter is Clone:\nlet cloned = param.clone();\nassert_eq!(param, cloned);\n```",
       "oneOf": [
         {
           "description": "Equivalent productivity coefficient (`ρ_eq`).",
@@ -184,7 +184,7 @@
           "type": "object"
         },
         {
-          "description": "Integrated accumulated productivity scaled by stage duration:\n`integrated_accumulated_productivity / (stage_hours * M3S_TO_HM3)`.\nOutput unit is `[MWh/hm³]` — the stored-energy coefficient used in\nVminOP constraints.",
+          "description": "Scaled integrated accumulated productivity for stored-energy constraints.\n\nReturns `ρ_acum_integrado / τ` where `τ = stage_hours × M3S_TO_HM3`.\nUnit: \\[MWh/hm³\\]. Multiply by storage \\[hm³\\] to get stored energy \\[MWh\\].\n\nUsed as the coefficient in VminOP (minimum stored energy) constraints:\n`Σ scaled_productivity(h) × storage_final(h) ≥ E_min`.",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
@@ -198,6 +198,44 @@
           "required": [
             "tag",
             "hydro_id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Scaled maximum stored energy for VminOP constraint bounds.\n\nComputes `(scale_factors[s] / 100) × ρ_acum_integrado(h, s) × (Vmax(h) - Vmin(h))`.\n\nThe `scale_factors` field contains `(stage_id, percentage)` pairs where\n`percentage` is an integer (e.g., 25 means 25%). The resolver divides by\n100 internally to get the decimal fraction.\n\nUnit: same as `MaxStoredEnergy` — productivity × volume, suitable for\ncomparison with `ρ × useful_volume` terms in VminOP constraints.",
+          "properties": {
+            "hydro_id": {
+              "$ref": "#/$defs/EntityId",
+              "description": "Hydro plant identifier."
+            },
+            "scale_factors": {
+              "description": "Per-stage scale factors as `(stage_id, percentage)` pairs.\nPercentage is an integer: 25 means 25%, divided by 100 at resolution.",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  {
+                    "format": "double",
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "tag": {
+              "const": "scaled_max_stored_energy",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tag",
+            "hydro_id",
+            "scale_factors"
           ],
           "type": "object"
         }

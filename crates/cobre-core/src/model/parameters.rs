@@ -74,7 +74,7 @@ pub enum CoefficientRef {
 /// let cloned = param.clone();
 /// assert_eq!(param, cloned);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(tag = "tag", rename_all = "snake_case"))]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -144,6 +144,23 @@ pub enum ComputedParameter {
     IntegratedAccumulatedProductivityScaled {
         /// Hydro plant identifier.
         hydro_id: EntityId,
+    },
+    /// Scaled maximum stored energy for VminOP constraint bounds.
+    ///
+    /// Computes `(scale_factors[s] / 100) × ρ_acum_integrado(h, s) × (Vmax(h) - Vmin(h))`.
+    ///
+    /// The `scale_factors` field contains `(stage_id, percentage)` pairs where
+    /// `percentage` is an integer (e.g., 25 means 25%). The resolver divides by
+    /// 100 internally to get the decimal fraction.
+    ///
+    /// Unit: same as `MaxStoredEnergy` — productivity × volume, suitable for
+    /// comparison with `ρ × useful_volume` terms in VminOP constraints.
+    ScaledMaxStoredEnergy {
+        /// Hydro plant identifier.
+        hydro_id: EntityId,
+        /// Per-stage scale factors as `(stage_id, percentage)` pairs.
+        /// Percentage is an integer: 25 means 25%, divided by 100 at resolution.
+        scale_factors: Vec<(i32, f64)>,
     },
 }
 
@@ -489,12 +506,16 @@ mod tests {
             ComputedParameter::IntegratedAccumulatedProductivityScaled {
                 hydro_id: EntityId(11),
             },
+            ComputedParameter::ScaledMaxStoredEnergy {
+                hydro_id: EntityId(12),
+                scale_factors: vec![(0, 25.0)],
+            },
         ];
 
         assert_eq!(
             variants.len(),
-            11,
-            "ComputedParameter must have exactly 11 variants"
+            12,
+            "ComputedParameter must have exactly 12 variants"
         );
 
         // No `_` arm: adding a variant without updating here is a compile error.
@@ -517,6 +538,7 @@ mod tests {
                 ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
                     "IntegratedAccumulatedProductivityScaled"
                 }
+                ComputedParameter::ScaledMaxStoredEnergy { .. } => "ScaledMaxStoredEnergy",
             };
         }
     }

@@ -39,6 +39,7 @@ pub fn validate_scalar_parameters(
     let hydro_ids: HashSet<EntityId> = hydros.iter().map(|h| h.id).collect();
 
     check_computed_hydro_references(parameters, &hydro_ids, ctx);
+    check_scaled_max_stored_energy(parameters, n_stages, ctx);
     check_per_stage_lengths(parameters, n_stages, ctx);
     check_global_uniqueness(parameters, ctx);
 }
@@ -63,6 +64,72 @@ fn check_computed_hydro_references(
                         param.name, hid.0
                     ),
                 );
+            }
+        }
+    }
+}
+
+/// Validates `ScaledMaxStoredEnergy` computed parameters:
+/// - `scale_factors.len() == n_stages`
+/// - stage_ids are contiguous starting from 0
+/// - all percentage values are finite
+fn check_scaled_max_stored_energy(
+    parameters: &[ScalarParameter],
+    n_stages: usize,
+    ctx: &mut ValidationContext,
+) {
+    for param in parameters {
+        if let ParameterKind::Computed {
+            computed_spec: ComputedParameter::ScaledMaxStoredEnergy { scale_factors, .. },
+        } = &param.kind
+        {
+            // Check length matches n_stages
+            if scale_factors.len() != n_stages {
+                ctx.add_error(
+                    ErrorKind::SchemaViolation,
+                    "constraints/generic_parameters.json",
+                    Some(format!("{}.computed_spec.scale_factors", param.name)),
+                    format!(
+                        "parameter '{}' has {} scale_factors but expected {} (n_stages)",
+                        param.name,
+                        scale_factors.len(),
+                        n_stages
+                    ),
+                );
+            }
+
+            // Check stage_ids are contiguous from 0
+            for (expected_idx, (stage_id, _)) in scale_factors.iter().enumerate() {
+                #[allow(clippy::cast_possible_wrap)]
+                let expected = expected_idx as i32;
+                if *stage_id != expected {
+                    ctx.add_error(
+                        ErrorKind::SchemaViolation,
+                        "constraints/generic_parameters.json",
+                        Some(format!("{}.computed_spec.scale_factors", param.name)),
+                        format!(
+                            "parameter '{}' scale_factors[{}] has stage_id {} but expected {}; \
+                             stage_ids must be contiguous starting from 0",
+                            param.name, expected_idx, stage_id, expected
+                        ),
+                    );
+                    break; // One error is enough for contiguity
+                }
+            }
+
+            // Check all percentages are finite
+            for (stage_id, pct) in scale_factors {
+                if !pct.is_finite() {
+                    ctx.add_error(
+                        ErrorKind::SchemaViolation,
+                        "constraints/generic_parameters.json",
+                        Some(format!("{}.computed_spec.scale_factors", param.name)),
+                        format!(
+                            "parameter '{}' scale_factors stage {} has non-finite percentage {}",
+                            param.name, stage_id, pct
+                        ),
+                    );
+                }
             }
         }
     }
@@ -135,7 +202,8 @@ fn hydro_id_of(c: &ComputedParameter) -> EntityId {
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
-        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => *hydro_id,
+        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id }
+        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id, .. } => *hydro_id,
     }
 }
 
@@ -505,5 +573,116 @@ mod tests {
              got: {:?}",
             ctx.errors().iter().map(|e| &e.message).collect::<Vec<_>>()
         );
+    }
+
+    // ── ScaledMaxStoredEnergy validation tests ────────────────────────────────
+
+    #[test]
+    fn test_scaled_max_stored_energy_valid() {
+        let system = system_with_hydros(&[1]);
+        let params = vec![computed_param(
+            1,
+            "bound_h1",
+            ComputedParameter::ScaledMaxStoredEnergy {
+                hydro_id: EntityId(1),
+                scale_factors: vec![(0, 25.0), (1, 30.0), (2, 28.0)],
+            },
+        )];
+        let mut ctx = ValidationContext::new();
+
+        validate_scalar_parameters(&params, system.hydros(), 3, &mut ctx);
+
+        assert!(
+            !ctx.has_errors(),
+            "valid ScaledMaxStoredEnergy should produce no errors; got: {:?}",
+            ctx.errors().iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_scaled_max_stored_energy_wrong_length() {
+        let system = system_with_hydros(&[1]);
+        let params = vec![computed_param(
+            1,
+            "bound_h1",
+            ComputedParameter::ScaledMaxStoredEnergy {
+                hydro_id: EntityId(1),
+                scale_factors: vec![(0, 25.0), (1, 30.0)], // 2 elements, expected 4
+            },
+        )];
+        let mut ctx = ValidationContext::new();
+
+        validate_scalar_parameters(&params, system.hydros(), 4, &mut ctx);
+
+        assert!(ctx.has_errors());
+        let errors = ctx.errors();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("2 scale_factors") && e.message.contains("expected 4")),
+            "should report scale_factors length mismatch; got: {:?}",
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_scaled_max_stored_energy_non_contiguous_stage_ids() {
+        let system = system_with_hydros(&[1]);
+        let params = vec![computed_param(
+            1,
+            "bound_h1",
+            ComputedParameter::ScaledMaxStoredEnergy {
+                hydro_id: EntityId(1),
+                scale_factors: vec![(0, 25.0), (2, 30.0), (3, 28.0)], // missing stage_id=1
+            },
+        )];
+        let mut ctx = ValidationContext::new();
+
+        validate_scalar_parameters(&params, system.hydros(), 3, &mut ctx);
+
+        assert!(ctx.has_errors());
+        let errors = ctx.errors();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("contiguous") || e.message.contains("expected 1")),
+            "should report non-contiguous stage_ids; got: {:?}",
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_scaled_max_stored_energy_non_finite_percentage() {
+        let system = system_with_hydros(&[1]);
+        let params = vec![computed_param(
+            1,
+            "bound_h1",
+            ComputedParameter::ScaledMaxStoredEnergy {
+                hydro_id: EntityId(1),
+                scale_factors: vec![(0, 25.0), (1, f64::INFINITY), (2, 28.0)],
+            },
+        )];
+        let mut ctx = ValidationContext::new();
+
+        validate_scalar_parameters(&params, system.hydros(), 3, &mut ctx);
+
+        assert!(ctx.has_errors());
+        let errors = ctx.errors();
+        assert!(
+            errors.iter().any(|e| e.message.contains("non-finite")),
+            "should report non-finite percentage; got: {:?}",
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_scaled_max_stored_energy_hydro_id_of_extracts_correctly() {
+        // Verify hydro_id_of works with ScaledMaxStoredEnergy
+        let c = ComputedParameter::ScaledMaxStoredEnergy {
+            hydro_id: EntityId(42),
+            scale_factors: vec![(0, 25.0)],
+        };
+        let hid = hydro_id_of(&c);
+        assert_eq!(hid, EntityId(42));
     }
 }
