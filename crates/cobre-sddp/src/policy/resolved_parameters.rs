@@ -485,7 +485,8 @@ fn resolve_computed(
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
-        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => hydro_id,
+        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id }
+        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id, .. } => hydro_id,
     };
 
     let hydro_idx = hydro_index.get(&hydro_id).copied().ok_or_else(|| {
@@ -581,6 +582,21 @@ fn resolve_computed(
                 const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
                 let tau = hours * M3S_TO_HM3;
                 rho_integrated / tau
+            }
+            ComputedParameter::ScaledMaxStoredEnergy {
+                ref scale_factors, ..
+            } => {
+                // scale_factors is Vec<(stage_id, percentage)>
+                // Find the percentage for the current stage_id
+                let pct = scale_factors
+                    .iter()
+                    .find(|(sid, _)| *sid == stage_id.0)
+                    .map(|(_, p)| *p)
+                    .unwrap_or(0.0);
+                let rho_integrated =
+                    energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
+                let useful_volume = hydro.max_storage_hm3 - hydro.min_storage_hm3;
+                (pct / 100.0) * rho_integrated * useful_volume
             }
         };
         values.push(value);

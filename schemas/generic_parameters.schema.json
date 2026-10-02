@@ -1,7 +1,7 @@
 {
   "$defs": {
     "ComputedParameter": {
-      "description": "A quantity computed from hydro data for the plant `hydro_id`.",
+      "description": "A Cobre-computed quantity indexed by hydro plant.\n\nEach variant names a scalar quantity that the resolver derives from hydro\ngeometry and operational data. All variants carry a single `hydro_id` field\nidentifying the hydro plant.\n\n# Examples\n\n```\nuse cobre_core::{ComputedParameter, EntityId};\n\nlet param = ComputedParameter::EquivalentProductivity {\n    hydro_id: EntityId(1),\n};\n\n// ComputedParameter is Clone:\nlet cloned = param.clone();\nassert_eq!(param, cloned);\n```",
       "oneOf": [
         {
           "description": "Equivalent productivity coefficient (`ρ_eq`).",
@@ -184,7 +184,7 @@
           "type": "object"
         },
         {
-          "description": "Integrated accumulated productivity scaled by stage duration:\n`integrated_accumulated_productivity / (stage_hours * M3S_TO_HM3)`.\nOutput unit is `[MWh/hm³]` — the stored-energy coefficient used in\nVminOP constraints.",
+          "description": "Scaled integrated accumulated productivity for stored-energy constraints.\n\nReturns `ρ_acum_integrado / τ` where `τ = stage_hours × M3S_TO_HM3`.\nUnit: \\[MWh/hm³\\]. Multiply by storage \\[hm³\\] to get stored energy \\[MWh\\].\n\nUsed as the coefficient in VminOP (minimum stored energy) constraints:\n`Σ scaled_productivity(h) × storage_final(h) ≥ E_min`.",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
@@ -200,47 +200,55 @@
             "hydro_id"
           ],
           "type": "object"
+        },
+        {
+          "description": "Scaled maximum stored energy for VminOP constraint bounds.\n\nComputes `(scale_factors[s] / 100) × ρ_acum_integrado(h, s) × (Vmax(h) - Vmin(h))`.\n\nThe `scale_factors` field contains `(stage_id, percentage)` pairs where\n`percentage` is an integer (e.g., 25 means 25%). The resolver divides by\n100 internally to get the decimal fraction.\n\nUnit: same as `MaxStoredEnergy` — productivity × volume, suitable for\ncomparison with `ρ × useful_volume` terms in VminOP constraints.",
+          "properties": {
+            "hydro_id": {
+              "$ref": "#/$defs/EntityId",
+              "description": "Hydro plant identifier."
+            },
+            "scale_factors": {
+              "description": "Per-stage scale factors as `(stage_id, percentage)` pairs.\nPercentage is an integer: 25 means 25%, divided by 100 at resolution.",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  {
+                    "format": "double",
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "tag": {
+              "const": "scaled_max_stored_energy",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tag",
+            "hydro_id",
+            "scale_factors"
+          ],
+          "type": "object"
         }
       ]
     },
     "EntityId": {
-      "description": "Entity identifier: the integer `id` of the entity it refers to.",
+      "description": "Strongly-typed entity identifier.\n\nWraps the `i32` identifier from JSON input files. The newtype pattern prevents\naccidental confusion between entity IDs and collection indices (`usize`), which\nis a common source of bugs in systems with both ID-based lookup and index-based\naccess. `EntityId` is used as the key in `HashMap<EntityId, usize>` lookup tables\nand as the value in cross-reference fields (e.g., `Hydro::bus_id`, `Line::source_bus_id`).\n\nWhy `i32` and not `String`: All JSON entity schemas use integer IDs (`i32`). Integer\nkeys are cheaper to hash, compare, and copy than strings — important because\n`EntityId` appears in every lookup table and cross-reference field. If a future\ninput format requires string IDs, the newtype boundary isolates the change to\n`EntityId`'s internal representation and its `From`/`Into` impls.\n\n# Examples\n\n```\nuse cobre_core::EntityId;\n\nlet id: EntityId = EntityId::from(42);\nassert_eq!(id.to_string(), \"42\");\n\nlet raw: i32 = i32::from(id);\nassert_eq!(raw, 42);\n```",
       "format": "int32",
       "type": "integer"
     },
-    "RawParameterKind": {
-      "description": "`kind` discriminator of a `generic_parameters.json` entry.",
-      "oneOf": [
-        {
-          "const": "constant",
-          "description": "One value for every stage, in `value`.",
-          "type": "string"
-        },
-        {
-          "const": "per_stage",
-          "description": "One value per stage, in `values` keyed by stage id.",
-          "type": "string"
-        },
-        {
-          "const": "seasonal",
-          "description": "One value per season, in `values` keyed by season id.",
-          "type": "string"
-        },
-        {
-          "const": "computed",
-          "description": "A quantity derived from hydro data, in `computed_spec`.",
-          "type": "string"
-        },
-        {
-          "const": "per_stage_block",
-          "description": "One value per stage and block, in `block_values`.",
-          "type": "string"
-        }
-      ]
-    },
     "ScalarParameterJsonEntry": {
       "additionalProperties": false,
-      "description": "One parameter entry.\n\nAn unknown key, such as the retired `values_source`, is a parse error that\nnames the key.",
+      "description": "Per-entry intermediate representation.\n\n`#[serde(deny_unknown_fields)]` ensures that any unknown field (e.g. a\nstale `\"values_source\"`) causes an immediate parse error with the field name\nin the message, rather than being silently ignored.",
       "properties": {
         "block_values": {
           "description": "`[[stage_id, block_id, value], ...]` triples. Required when\n`kind == \"per_stage_block\"` (each `(stage_id, block_id)` pair unique);\nmust be absent for all other kinds.",
@@ -285,8 +293,8 @@
           "type": "integer"
         },
         "kind": {
-          "$ref": "#/$defs/RawParameterKind",
-          "description": "Selects which payload field (`value`, `values`, `computed_spec` or\n`block_values`) the entry carries."
+          "description": "Discriminator: `\"constant\"`, `\"per_stage\"`, `\"seasonal\"`, or `\"computed\"`.\nThe presence of `value` / `values` / `computed_spec` is determined by\nthis field at parse time.",
+          "type": "string"
         },
         "name": {
           "description": "Human-readable name; unique within the file. Used as the `@name` reference\nfrom `generic_constraints.json`.",
@@ -332,7 +340,7 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Root object of `generic_parameters.json`.\n\nTop-level keys other than `scalar_parameters`, such as `$schema`, are\nignored; an unknown key inside an entry is an error.",
+  "description": "Top-level JSON wrapper.\n\n`#[serde(deny_unknown_fields)]` is intentionally omitted at this level so that\n`\"$schema\"` and similar JSON schema tooling keys are tolerated.  Unknown fields\nare only rejected at the per-entry level via [`ScalarParameterJsonEntry`].",
   "properties": {
     "$schema": {
       "default": null,
