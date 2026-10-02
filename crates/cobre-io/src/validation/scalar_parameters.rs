@@ -51,7 +51,7 @@ fn check_computed_hydro_references(
     ctx: &mut ValidationContext,
 ) {
     for param in parameters {
-        if let ParameterKind::Computed { computed_spec: c } = param.kind {
+        if let ParameterKind::Computed { computed_spec: c } = &param.kind {
             let hid = hydro_id_of(c);
             if !hydro_ids.contains(&hid) {
                 ctx.add_error(
@@ -123,7 +123,7 @@ fn check_global_uniqueness(parameters: &[ScalarParameter], ctx: &mut ValidationC
 ///
 /// Keep the match exhaustive with no `_` arm — a new variant must then fail to
 /// compile here rather than silently skip its hydro-id check.
-fn hydro_id_of(c: ComputedParameter) -> EntityId {
+fn hydro_id_of(c: &ComputedParameter) -> EntityId {
     match c {
         ComputedParameter::EquivalentProductivity { hydro_id }
         | ComputedParameter::AccumulatedProductivity { hydro_id }
@@ -135,7 +135,7 @@ fn hydro_id_of(c: ComputedParameter) -> EntityId {
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
-        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => hydro_id,
+        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => *hydro_id,
     }
 }
 

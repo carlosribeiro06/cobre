@@ -421,11 +421,14 @@ fn convert_computed(
     entry: &ScalarParameterJsonEntry,
     path: &Path,
 ) -> Result<ParameterKind, LoadError> {
-    let computed_spec = entry.computed_spec.ok_or_else(|| LoadError::SchemaError {
-        path: path.to_path_buf(),
-        field: format!("scalar_parameters[{i}].computed_spec"),
-        message: "\"computed\" kind requires a \"computed_spec\" field".to_string(),
-    })?;
+    let computed_spec = entry
+        .computed_spec
+        .clone()
+        .ok_or_else(|| LoadError::SchemaError {
+            path: path.to_path_buf(),
+            field: format!("scalar_parameters[{i}].computed_spec"),
+            message: "\"computed\" kind requires a \"computed_spec\" field".to_string(),
+        })?;
     Ok(ParameterKind::Computed { computed_spec })
 }
 

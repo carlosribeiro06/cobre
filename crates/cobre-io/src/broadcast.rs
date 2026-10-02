@@ -100,7 +100,7 @@ impl From<&ParameterKind> for BroadcastParameterKind {
             ParameterKind::PerStage { values } => Self::PerStage(values.clone()),
             ParameterKind::Seasonal { values } => Self::Seasonal(values.clone()),
             ParameterKind::Computed { computed_spec } => {
-                Self::Computed(BroadcastComputedParameter::from(*computed_spec))
+                Self::Computed(BroadcastComputedParameter::from(computed_spec.clone()))
             }
             ParameterKind::PerStageBlock { values } => Self::PerStageBlock(values.clone()),
         }
