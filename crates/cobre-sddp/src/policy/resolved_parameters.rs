@@ -379,7 +379,7 @@ fn resolve_kind(
 
         ParameterKind::Computed { computed_spec: cp } => {
             let per_stage = resolve_computed(
-                cp.clone(),
+                cp,
                 name,
                 stage_axis.ids,
                 stage_axis.total_hours,
@@ -465,7 +465,7 @@ fn resolve_per_stage_block(
 
 /// Resolve a [`ComputedParameter`] into a `Vec<f64>` of length `stage_ids.len()`.
 fn resolve_computed(
-    cp: ComputedParameter,
+    cp: &ComputedParameter,
     name: &str,
     stage_ids: &[StageId],
     stage_total_hours: &[f64],
@@ -474,6 +474,9 @@ fn resolve_computed(
     hydros: &[Hydro],
     hydro_index: &HashMap<EntityId, usize>,
 ) -> Result<Vec<f64>, ResolvedParametersError> {
+    // Constant used by IntegratedAccumulatedProductivityScaled
+    const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
+
     let hydro_id = match cp {
         ComputedParameter::EquivalentProductivity { hydro_id }
         | ComputedParameter::AccumulatedProductivity { hydro_id }
@@ -486,7 +489,7 @@ fn resolve_computed(
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id }
-        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id, .. } => hydro_id,
+        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id, .. } => *hydro_id,
     };
 
     let hydro_idx = hydro_index.get(&hydro_id).copied().ok_or_else(|| {
@@ -579,20 +582,16 @@ fn resolve_computed(
                     hours > 0.0,
                     "stage_total_hours[{t}] must be > 0 (Rule 52 validation)"
                 );
-                const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
                 let tau = hours * M3S_TO_HM3;
                 rho_integrated / tau
             }
-            ComputedParameter::ScaledMaxStoredEnergy {
-                ref scale_factors, ..
-            } => {
+            ComputedParameter::ScaledMaxStoredEnergy { scale_factors, .. } => {
                 // scale_factors is Vec<(stage_id, percentage)>
                 // Find the percentage for the current stage_id
                 let pct = scale_factors
                     .iter()
                     .find(|(sid, _)| *sid == stage_id.0)
-                    .map(|(_, p)| *p)
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |(_, p)| *p);
                 let rho_integrated =
                     energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
                 let useful_volume = hydro.max_storage_hm3 - hydro.min_storage_hm3;
