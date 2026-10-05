@@ -16,6 +16,7 @@ use cobre_core::{ComputedParameter, EntityId, Hydro, ParameterKind, ScalarParame
 use thiserror::Error;
 
 use crate::energy_conversion::{EnergyConversionSet, HydroEnergyProductivityOverride};
+use crate::simulation::extraction::ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S;
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -468,15 +469,12 @@ fn resolve_computed(
     cp: &ComputedParameter,
     name: &str,
     stage_ids: &[StageId],
-    stage_total_hours: &[f64],
+    _stage_total_hours: &[f64],
     energy_conversion: &EnergyConversionSet,
     override_table: &HydroEnergyProductivityOverride,
     hydros: &[Hydro],
     hydro_index: &HashMap<EntityId, usize>,
 ) -> Result<Vec<f64>, ResolvedParametersError> {
-    // Constant used by IntegratedAccumulatedProductivityScaled
-    const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
-
     let hydro_id = match cp {
         ComputedParameter::EquivalentProductivity { hydro_id }
         | ComputedParameter::AccumulatedProductivity { hydro_id }
@@ -577,13 +575,8 @@ fn resolve_computed(
             ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
                 let rho_integrated =
                     energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
-                let hours = stage_total_hours[t];
-                debug_assert!(
-                    hours > 0.0,
-                    "stage_total_hours[{t}] must be > 0 (Rule 52 validation)"
-                );
-                let tau = hours * M3S_TO_HM3;
-                rho_integrated / tau
+                // ρ_int [MW/(m³/s)] × ENERGY_FACTOR [(m³/s)·h / hm³] = MWh/hm³
+                rho_integrated * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
             }
             ComputedParameter::ScaledMaxStoredEnergy { scale_factors, .. } => {
                 // scale_factors is Vec<(stage_id, percentage)>
@@ -595,7 +588,11 @@ fn resolve_computed(
                 let rho_integrated =
                     energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
                 let useful_volume = hydro.max_storage_hm3 - hydro.min_storage_hm3;
-                (pct / 100.0) * rho_integrated * useful_volume
+                // (pct/100) × ρ_int [MW/(m³/s)] × V [hm³] × ENERGY_FACTOR = MWh
+                (pct / 100.0)
+                    * rho_integrated
+                    * useful_volume
+                    * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
             }
         };
         values.push(value);
@@ -1490,11 +1487,11 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // IntegratedAccumulatedProductivityScaled: divides by τ = hours × M3S_TO_HM3
+    // IntegratedAccumulatedProductivityScaled: multiplies by ENERGY_FACTOR
     // -------------------------------------------------------------------------
 
     #[test]
-    fn integrated_accumulated_productivity_scaled_divides_by_tau() {
+    fn integrated_accumulated_productivity_scaled_multiplies_by_energy_factor() {
         let n_stages = 4;
         let (hydros, base_ec, override_table, stage_to_season, stage_ids) =
             make_setup_inputs(n_stages);
@@ -1536,13 +1533,14 @@ mod tests {
         )
         .unwrap();
 
-        const M3S_TO_HM3: f64 = 3600.0 / 1_000_000.0;
+        // ENERGY_FACTOR = 10^6 / 3600 ≈ 277.78
+        // ρ_int [MW/(m³/s)] × ENERGY_FACTOR = MWh/hm³
+        const ENERGY_FACTOR: f64 = 1.0e6 / 3600.0;
         for t in 0..n_stages {
             let rho_integrated = integrated_accumulated[0][t];
-            let tau = stage_hours[t] * M3S_TO_HM3;
-            let expected = rho_integrated / tau;
+            let expected = rho_integrated * ENERGY_FACTOR;
             assert!(
-                (table.get(EntityId(0), t, 0) - expected).abs() < 1e-12,
+                (table.get(EntityId(0), t, 0) - expected).abs() < 1e-9,
                 "stage {t}: expected {expected}, got {}",
                 table.get(EntityId(0), t, 0)
             );

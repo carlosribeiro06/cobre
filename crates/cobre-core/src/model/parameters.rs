@@ -140,25 +140,28 @@ pub enum ComputedParameter {
     },
     /// Scaled integrated accumulated productivity for stored-energy constraints.
     ///
-    /// Returns `ρ_acum_integrado / τ` where `τ = stage_hours × M3S_TO_HM3`.
-    /// Unit: \[`MWh`/hm³\]. Multiply by storage \[hm³\] to get stored energy \[`MWh`\].
+    /// Returns `ρ_acum_integrado × ENERGY_FACTOR` where
+    /// `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
+    ///
+    /// Unit: \[MWh/hm³\]. Multiply by useful volume \[hm³\] to get stored energy \[MWh\].
     ///
     /// Used as the coefficient in `VminOP` (minimum stored energy) constraints:
-    /// `Σ scaled_productivity(h) × storage_final(h) ≥ E_min`.
+    /// `Σ scaled_productivity(h) × useful_volume_final(h) ≥ E_min [MWh]`.
     IntegratedAccumulatedProductivityScaled {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
     /// Scaled maximum stored energy for `VminOP` constraint bounds.
     ///
-    /// Computes `(scale_factors[s] / 100) × ρ_acum_integrado(h, s) × (Vmax(h) - Vmin(h))`.
+    /// Computes `(pct / 100) × ρ_acum_integrado × (Vmax - Vmin) × ENERGY_FACTOR`
+    /// where `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
     ///
     /// The `scale_factors` field contains `(stage_id, percentage)` pairs where
-    /// `percentage` is an integer (e.g., 25 means 25%). The resolver divides by
+    /// `percentage` is a number (e.g., 25.0 means 25%). The resolver divides by
     /// 100 internally to get the decimal fraction.
     ///
-    /// Unit: same as `MaxStoredEnergy` — productivity × volume, suitable for
-    /// comparison with `ρ × useful_volume` terms in `VminOP` constraints.
+    /// Unit: \[MWh\]. This is an energy bound, compatible with the LHS of a
+    /// `VminOP` constraint: `ρ_scaled × useful_volume ≥ bound`.
     ScaledMaxStoredEnergy {
         /// Hydro plant identifier.
         hydro_id: EntityId,
