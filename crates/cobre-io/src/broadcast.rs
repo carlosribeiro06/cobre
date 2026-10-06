@@ -47,7 +47,7 @@ pub enum BroadcastParameterKind {
 }
 
 /// Postcard-safe mirror of [`ComputedParameter`]. Externally-tagged.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BroadcastComputedParameter {
     /// Equivalent productivity coefficient (`ρ_eq`).
     EquivalentProductivity(EntityId),
@@ -70,9 +70,9 @@ pub enum BroadcastComputedParameter {
     /// Maximum stored energy over the physical per-stage storage range.
     MaxStoredEnergy(EntityId),
     /// Scaled integrated accumulated productivity (stored-energy coefficient).
-    IntegratedAccumulatedProductivityScaled(EntityId),
-    /// Scaled maximum stored energy with per-stage scale factors.
-    ScaledMaxStoredEnergy(EntityId, Vec<(i32, f64)>),
+    ScaledIntegratedAccumulatedProductivity(EntityId),
+    /// Scaled maximum stored energy (`EARM_max`).
+    ScaledMaxStoredEnergy(EntityId),
 }
 
 impl From<&ScalarParameter> for BroadcastScalarParameter {
@@ -102,7 +102,7 @@ impl From<&ParameterKind> for BroadcastParameterKind {
             ParameterKind::PerStage { values } => Self::PerStage(values.clone()),
             ParameterKind::Seasonal { values } => Self::Seasonal(values.clone()),
             ParameterKind::Computed { computed_spec } => {
-                Self::Computed(BroadcastComputedParameter::from(computed_spec.clone()))
+                Self::Computed(BroadcastComputedParameter::from(*computed_spec))
             }
             ParameterKind::PerStageBlock { values } => Self::PerStageBlock(values.clone()),
         }
@@ -146,13 +146,12 @@ impl From<ComputedParameter> for BroadcastComputedParameter {
                 Self::IntegratedAccumulatedProductivity(hydro_id)
             }
             ComputedParameter::MaxStoredEnergy { hydro_id } => Self::MaxStoredEnergy(hydro_id),
-            ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id } => {
-                Self::IntegratedAccumulatedProductivityScaled(hydro_id)
+            ComputedParameter::ScaledIntegratedAccumulatedProductivity { hydro_id } => {
+                Self::ScaledIntegratedAccumulatedProductivity(hydro_id)
             }
-            ComputedParameter::ScaledMaxStoredEnergy {
-                hydro_id,
-                scale_factors,
-            } => Self::ScaledMaxStoredEnergy(hydro_id, scale_factors),
+            ComputedParameter::ScaledMaxStoredEnergy { hydro_id } => {
+                Self::ScaledMaxStoredEnergy(hydro_id)
+            }
         }
     }
 }
@@ -186,14 +185,11 @@ impl From<BroadcastComputedParameter> for ComputedParameter {
             BroadcastComputedParameter::MaxStoredEnergy(hydro_id) => {
                 Self::MaxStoredEnergy { hydro_id }
             }
-            BroadcastComputedParameter::IntegratedAccumulatedProductivityScaled(hydro_id) => {
-                Self::IntegratedAccumulatedProductivityScaled { hydro_id }
+            BroadcastComputedParameter::ScaledIntegratedAccumulatedProductivity(hydro_id) => {
+                Self::ScaledIntegratedAccumulatedProductivity { hydro_id }
             }
-            BroadcastComputedParameter::ScaledMaxStoredEnergy(hydro_id, scale_factors) => {
-                Self::ScaledMaxStoredEnergy {
-                    hydro_id,
-                    scale_factors,
-                }
+            BroadcastComputedParameter::ScaledMaxStoredEnergy(hydro_id) => {
+                Self::ScaledMaxStoredEnergy { hydro_id }
             }
         }
     }
@@ -553,11 +549,11 @@ mod tests {
                 0x09,
             ),
             (
-                BroadcastComputedParameter::IntegratedAccumulatedProductivityScaled(EntityId(0)),
+                BroadcastComputedParameter::ScaledIntegratedAccumulatedProductivity(EntityId(0)),
                 0x0A,
             ),
             (
-                BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(0), vec![]),
+                BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(0)),
                 0x0B,
             ),
         ];
@@ -592,10 +588,7 @@ mod tests {
 
     #[test]
     fn broadcast_computed_parameter_scaled_max_stored_energy_round_trip() {
-        let variant = BroadcastComputedParameter::ScaledMaxStoredEnergy(
-            EntityId(42),
-            vec![(0, 25.0), (1, 30.0), (2, 28.0)],
-        );
+        let variant = BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(42));
         let bytes = postcard::to_allocvec(&variant).unwrap();
         let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
         assert_eq!(restored, variant);

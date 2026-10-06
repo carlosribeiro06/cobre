@@ -237,7 +237,7 @@ impl ResolvedParameters {
 ///
 /// let table = build_resolved_parameters(
 ///     &params, &ec, &overrides, &[], &[0, 0, 1, 1], &stage_ids, &[1, 1, 1, 1],
-///     1_000_000.0,
+///     &[730.0, 672.0, 744.0, 720.0], 1_000_000.0,
 /// )
 ///     .unwrap();
 ///
@@ -380,7 +380,7 @@ fn resolve_kind(
 
         ParameterKind::Computed { computed_spec: cp } => {
             let per_stage = resolve_computed(
-                cp,
+                *cp,
                 name,
                 stage_axis.ids,
                 stage_axis.total_hours,
@@ -466,7 +466,7 @@ fn resolve_per_stage_block(
 
 /// Resolve a [`ComputedParameter`] into a `Vec<f64>` of length `stage_ids.len()`.
 fn resolve_computed(
-    cp: &ComputedParameter,
+    cp: ComputedParameter,
     name: &str,
     stage_ids: &[StageId],
     _stage_total_hours: &[f64],
@@ -486,8 +486,8 @@ fn resolve_computed(
         | ComputedParameter::IntegratedEquivalentProductivity { hydro_id }
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
-        | ComputedParameter::IntegratedAccumulatedProductivityScaled { hydro_id }
-        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id, .. } => *hydro_id,
+        | ComputedParameter::ScaledIntegratedAccumulatedProductivity { hydro_id }
+        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id } => hydro_id,
     };
 
     let hydro_idx = hydro_index.get(&hydro_id).copied().ok_or_else(|| {
@@ -572,27 +572,18 @@ fn resolve_computed(
                 energy_conversion.integrated_accumulated_productivity(hydro_idx, t)
                     * (hydro.max_storage_hm3 - hydro.min_storage_hm3)
             }
-            ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
+            ComputedParameter::ScaledIntegratedAccumulatedProductivity { .. } => {
                 let rho_integrated =
                     energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
                 // ρ_int [MW/(m³/s)] × ENERGY_FACTOR [(m³/s)·h / hm³] = MWh/hm³
                 rho_integrated * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
             }
-            ComputedParameter::ScaledMaxStoredEnergy { scale_factors, .. } => {
-                // scale_factors is Vec<(stage_id, percentage)>
-                // Find the percentage for the current stage_id
-                let pct = scale_factors
-                    .iter()
-                    .find(|(sid, _)| *sid == stage_id.0)
-                    .map_or(0.0, |(_, p)| *p);
+            ComputedParameter::ScaledMaxStoredEnergy { .. } => {
                 let rho_integrated =
                     energy_conversion.integrated_accumulated_productivity(hydro_idx, t);
                 let useful_volume = hydro.max_storage_hm3 - hydro.min_storage_hm3;
-                // (pct/100) × ρ_int [MW/(m³/s)] × V [hm³] × ENERGY_FACTOR = MWh
-                (pct / 100.0)
-                    * rho_integrated
-                    * useful_volume
-                    * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
+                // ρ_int [MW/(m³/s)] × V [hm³] × ENERGY_FACTOR = MWh (EARM_max)
+                rho_integrated * useful_volume * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
             }
         };
         values.push(value);
@@ -1487,11 +1478,11 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // IntegratedAccumulatedProductivityScaled: multiplies by ENERGY_FACTOR
+    // ScaledIntegratedAccumulatedProductivity: multiplies by ENERGY_FACTOR
     // -------------------------------------------------------------------------
 
     #[test]
-    fn integrated_accumulated_productivity_scaled_multiplies_by_energy_factor() {
+    fn scaled_integrated_accumulated_productivity_multiplies_by_energy_factor() {
         let n_stages = 4;
         let (hydros, base_ec, override_table, stage_to_season, stage_ids) =
             make_setup_inputs(n_stages);
@@ -1514,7 +1505,7 @@ mod tests {
         let params = vec![make_param(
             0,
             ParameterKind::Computed {
-                computed_spec: ComputedParameter::IntegratedAccumulatedProductivityScaled {
+                computed_spec: ComputedParameter::ScaledIntegratedAccumulatedProductivity {
                     hydro_id: EntityId(0),
                 },
             },

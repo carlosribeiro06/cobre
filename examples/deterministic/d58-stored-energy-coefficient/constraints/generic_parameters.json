@@ -3,21 +3,38 @@
   "scalar_parameters": [
     {
       "id": 1,
-      "name": "rho_acum_h0",
+      "name": "rho_scaled_h0",
       "kind": "computed",
       "computed_spec": {
-        "tag": "integrated_accumulated_productivity_scaled",
+        "tag": "scaled_integrated_accumulated_productivity",
         "hydro_id": 0
       }
     },
     {
       "id": 2,
-      "name": "bound_h0",
+      "name": "rho_scaled_h1",
+      "kind": "computed",
+      "computed_spec": {
+        "tag": "scaled_integrated_accumulated_productivity",
+        "hydro_id": 1
+      }
+    },
+    {
+      "id": 3,
+      "name": "earm_max_h0",
       "kind": "computed",
       "computed_spec": {
         "tag": "scaled_max_stored_energy",
-        "hydro_id": 0,
-        "scale_factors": [[0, 25], [1, 25]]
+        "hydro_id": 0
+      }
+    },
+    {
+      "id": 4,
+      "name": "earm_max_h1",
+      "kind": "computed",
+      "computed_spec": {
+        "tag": "scaled_max_stored_energy",
+        "hydro_id": 1
       }
     }
   ]

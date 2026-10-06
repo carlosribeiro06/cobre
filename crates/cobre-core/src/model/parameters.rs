@@ -70,11 +70,11 @@ pub enum CoefficientRef {
 ///     hydro_id: EntityId(1),
 /// };
 ///
-/// // ComputedParameter is Clone:
-/// let cloned = param.clone();
-/// assert_eq!(param, cloned);
+/// // ComputedParameter is Copy:
+/// let copy = param;
+/// assert_eq!(param, copy);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(tag = "tag", rename_all = "snake_case"))]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -143,31 +143,23 @@ pub enum ComputedParameter {
     /// Returns `ρ_acum_integrado × ENERGY_FACTOR` where
     /// `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
     ///
-    /// Unit: \[MWh/hm³\]. Multiply by useful volume \[hm³\] to get stored energy \[MWh\].
+    /// Unit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.
     ///
     /// Used as the coefficient in `VminOP` (minimum stored energy) constraints:
     /// `Σ scaled_productivity(h) × useful_volume_final(h) ≥ E_min [MWh]`.
-    IntegratedAccumulatedProductivityScaled {
+    ScaledIntegratedAccumulatedProductivity {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
     /// Scaled maximum stored energy for `VminOP` constraint bounds.
     ///
-    /// Computes `(pct / 100) × ρ_acum_integrado × (Vmax - Vmin) × ENERGY_FACTOR`
+    /// Computes `ρ_acum_integrado × (Vmax - Vmin) × ENERGY_FACTOR`
     /// where `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
     ///
-    /// The `scale_factors` field contains `(stage_id, percentage)` pairs where
-    /// `percentage` is a number (e.g., 25.0 means 25%). The resolver divides by
-    /// 100 internally to get the decimal fraction.
-    ///
-    /// Unit: \[MWh\]. This is an energy bound, compatible with the LHS of a
-    /// `VminOP` constraint: `ρ_scaled × useful_volume ≥ bound`.
+    /// Unit: `[MWh]`. This is `EARM_max`, the maximum storable energy for the plant.
     ScaledMaxStoredEnergy {
         /// Hydro plant identifier.
         hydro_id: EntityId,
-        /// Per-stage scale factors as `(stage_id, percentage)` pairs.
-        /// Percentage is an integer: 25 means 25%, divided by 100 at resolution.
-        scale_factors: Vec<(i32, f64)>,
     },
 }
 
@@ -510,12 +502,11 @@ mod tests {
             ComputedParameter::MaxStoredEnergy {
                 hydro_id: EntityId(10),
             },
-            ComputedParameter::IntegratedAccumulatedProductivityScaled {
+            ComputedParameter::ScaledIntegratedAccumulatedProductivity {
                 hydro_id: EntityId(11),
             },
             ComputedParameter::ScaledMaxStoredEnergy {
                 hydro_id: EntityId(12),
-                scale_factors: vec![(0, 25.0)],
             },
         ];
 
@@ -542,8 +533,8 @@ mod tests {
                     "IntegratedAccumulatedProductivity"
                 }
                 ComputedParameter::MaxStoredEnergy { .. } => "MaxStoredEnergy",
-                ComputedParameter::IntegratedAccumulatedProductivityScaled { .. } => {
-                    "IntegratedAccumulatedProductivityScaled"
+                ComputedParameter::ScaledIntegratedAccumulatedProductivity { .. } => {
+                    "ScaledIntegratedAccumulatedProductivity"
                 }
                 ComputedParameter::ScaledMaxStoredEnergy { .. } => "ScaledMaxStoredEnergy",
             };
