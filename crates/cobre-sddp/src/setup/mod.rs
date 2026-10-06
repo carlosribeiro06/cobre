@@ -1013,7 +1013,15 @@ fn check_scalar_parameters_present(
         .into_iter()
         .flatten()
         .flat_map(AffineBound::params);
-        for id in expression_ids.chain(bound_ids) {
+        let product_ids = [
+            &constraint.bound_lower_affine,
+            &constraint.bound_upper_affine,
+        ]
+        .into_iter()
+        .flatten()
+        .flat_map(AffineBound::product_params)
+        .flat_map(|(left, right)| [left, right]);
+        for id in expression_ids.chain(bound_ids).chain(product_ids) {
             if !is_resolved(id) {
                 return Err(SddpError::Validation(format!(
                     "generic constraint '{}' references scalar parameter id={} not \

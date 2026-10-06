@@ -2176,6 +2176,7 @@ mod tests {
         constraint.bound_upper_affine = Some(AffineBound {
             constant: -5.0,
             terms: vec![],
+            products: vec![],
         });
         data.generic_constraints = vec![constraint];
         data.generic_constraint_bounds = vec![GenericConstraintBoundsRow {
@@ -2239,6 +2240,7 @@ mod tests {
         constraint.bound_upper_affine = Some(AffineBound {
             constant: -30.0,
             terms: vec![],
+            products: vec![],
         });
         data.generic_constraints = vec![constraint];
         data.generic_constraint_bounds = vec![GenericConstraintBoundsRow {

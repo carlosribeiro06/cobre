@@ -31,6 +31,8 @@
 //!              | coefficient                             (only in a relation with an operator)
 //! term       ::= coefficient '*' '@' name '*' variable   (parameter coefficient, scaled)
 //!              | '@' name '*' variable                   (parameter coefficient)
+//!              | coefficient '*' '@' name '*' '@' name   (parameter product, scaled — RHS only)
+//!              | '@' name '*' '@' name                   (parameter product — RHS only)
 //!              | coefficient '*' '@' name                (named-expression reference, scaled)
 //!              | '@' name                                (named-expression reference)
 //!              | coefficient '*' variable
@@ -46,8 +48,12 @@
 //! `&HashMap::new()` when no parameters are loaded; such a coefficient token then
 //! errors as an unknown parameter). A standalone `@name`, or a `coefficient *
 //! @name` with no trailing variable, is a named-expression reference, resolved
-//! against the file's own `expressions` table, not `name_to_id`. `@param * @name`
-//! (two references in one term) is rejected — it has no linear core representation.
+//! against the file's own `expressions` table, not `name_to_id`.
+//!
+//! A parameter product `@p * @q` (optionally scaled: `coefficient * @p * @q`) is
+//! valid **only in bound position** (RHS of a relational operator). Both names
+//! must resolve to scalar parameters, not named expressions. Chained products
+//! (`@p * @q * @r`) are rejected.
 //!
 //! A `group` — bare, or scaled by a leading literal `coefficient '*'` — distributes
 //! that coefficient into every inner term's scale at parse time (nesting to
@@ -493,7 +499,7 @@ fn convert(
             ParsedRelation::Relational { lhs, op, rhs } => {
                 let lhs = resolve_split_side(lhs, name_to_id, table).map_err(expression_err)?;
                 let rhs = resolve_split_side(rhs, name_to_id, table).map_err(expression_err)?;
-                normalize(lhs, rhs, op)
+                normalize(lhs, rhs, op).map_err(expression_err)?
             }
         };
 
@@ -1059,6 +1065,12 @@ enum SplitTerm {
     Named(ParsedTerm),
     /// A standalone numeric literal with no variable.
     Constant(f64),
+    /// A product of two parameters: `scale * @left * @right`.
+    ParamProduct {
+        scale: f64,
+        left: EntityId,
+        right: EntityId,
+    },
 }
 
 /// A constraint expression, optionally split by exactly one top-level
@@ -1197,11 +1209,79 @@ fn parse_split_side(
     Ok(terms)
 }
 
+/// Try to parse a parameter product pattern: `@p * @q` or `coef * @p * @q`.
+///
+/// Returns `Some((terms, end_pos))` if the pattern matches, `None` if not.
+/// Returns `Err` if the pattern starts but is malformed (e.g., chained products).
+fn try_parse_param_product(
+    tokens: &[Token],
+    pos: usize,
+    sign: f64,
+    name_to_id: &HashMap<String, EntityId>,
+) -> Result<Option<(Vec<SplitTerm>, usize)>, String> {
+    // Pattern 1: `@p * @q`
+    if let Some(Token::ParamRef(first_name)) = tokens.get(pos) {
+        if tokens.get(pos + 1) == Some(&Token::Star) {
+            if let Some(Token::ParamRef(second_name)) = tokens.get(pos + 2) {
+                // Check for chained product: `@p * @q * @r`
+                if tokens.get(pos + 3) == Some(&Token::Star) {
+                    return Err(format!(
+                        "chained parameter products (@{first_name} * @{second_name} * ...) are not supported; \
+                         use at most two parameters per product"
+                    ));
+                }
+                let left = resolve_param_ref(first_name, name_to_id)?;
+                let right = resolve_param_ref(second_name, name_to_id)?;
+                return Ok(Some((
+                    vec![SplitTerm::ParamProduct {
+                        scale: sign,
+                        left,
+                        right,
+                    }],
+                    pos + 3,
+                )));
+            }
+        }
+    }
+
+    // Pattern 2: `coef * @p * @q`
+    if let Some(Token::Number(coef)) = tokens.get(pos) {
+        if tokens.get(pos + 1) == Some(&Token::Star) {
+            if let Some(Token::ParamRef(first_name)) = tokens.get(pos + 2) {
+                if tokens.get(pos + 3) == Some(&Token::Star) {
+                    if let Some(Token::ParamRef(second_name)) = tokens.get(pos + 4) {
+                        // Check for chained product: `coef * @p * @q * @r`
+                        if tokens.get(pos + 5) == Some(&Token::Star) {
+                            return Err(format!(
+                                "chained parameter products ({coef} * @{first_name} * @{second_name} * ...) \
+                                 are not supported; use at most two parameters per product"
+                            ));
+                        }
+                        let left = resolve_param_ref(first_name, name_to_id)?;
+                        let right = resolve_param_ref(second_name, name_to_id)?;
+                        return Ok(Some((
+                            vec![SplitTerm::ParamProduct {
+                                scale: sign * coef,
+                                left,
+                                right,
+                            }],
+                            pos + 5,
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 /// Parse one term of a relational side: a standalone numeric literal with no
-/// following `*` is the new affine-remainder constant leaf; every other shape
-/// delegates to [`parse_single_term`] unchanged (paren groups, `@param`
-/// coefficients, and named-expression/parameter references all work exactly
-/// as they do in the plain grammar).
+/// following `*` is the new affine-remainder constant leaf; a parameter
+/// product `@p * @q` is the new product leaf (valid only in bound position);
+/// every other shape delegates to [`parse_single_term`] unchanged (paren
+/// groups, `@param` coefficients, and named-expression/parameter references
+/// all work exactly as they do in the plain grammar).
 fn parse_split_single_term(
     tokens: &[Token],
     pos: usize,
@@ -1209,10 +1289,18 @@ fn parse_split_single_term(
     name_to_id: &HashMap<String, EntityId>,
     line_index: &LineBusPairIndex,
 ) -> Result<(Vec<SplitTerm>, usize), String> {
+    // Standalone numeric literal (no `*` following) → Constant
     if let Some(Token::Number(v)) = tokens.get(pos)
         && tokens.get(pos + 1) != Some(&Token::Star)
     {
         return Ok((vec![SplitTerm::Constant(v * sign)], pos + 1));
+    }
+
+    // Check for parameter product patterns:
+    // - `@p * @q` (two params)
+    // - `coef * @p * @q` (scaled two params)
+    if let Some(product) = try_parse_param_product(tokens, pos, sign, name_to_id)? {
+        return Ok(product);
     }
 
     let (parsed, next_pos) = parse_single_term(tokens, pos, sign, name_to_id, line_index)?;
@@ -1245,6 +1333,9 @@ fn resolve_split_side(
                     let id = resolve_param_ref(&name, name_to_id)?;
                     out.push(SideTerm::Param(scale, id));
                 }
+            }
+            SplitTerm::ParamProduct { scale, left, right } => {
+                out.push(SideTerm::ParamProduct { scale, left, right });
             }
         }
     }
@@ -2284,6 +2375,7 @@ mod tests {
         match &terms[0] {
             SplitTerm::Constant(v) => assert!((v - 73.0).abs() < f64::EPSILON),
             SplitTerm::Named(t) => panic!("expected a Constant term, got: {t:?}"),
+            SplitTerm::ParamProduct { .. } => panic!("expected a Constant term, got ParamProduct"),
         }
     }
 
@@ -2298,6 +2390,9 @@ mod tests {
             match term {
                 SplitTerm::Constant(v) => assert!((v - expected).abs() < f64::EPSILON),
                 SplitTerm::Named(t) => panic!("expected a Constant term, got: {t:?}"),
+                SplitTerm::ParamProduct { .. } => {
+                    panic!("expected a Constant term, got ParamProduct")
+                }
             }
         }
     }
@@ -2332,7 +2427,8 @@ mod tests {
             result[0].bound_upper_affine,
             Some(AffineBound {
                 constant: 73.0,
-                terms: vec![]
+                terms: vec![],
+                products: vec![],
             })
         );
         assert_eq!(result[0].bound_lower_affine, None);
@@ -2378,7 +2474,8 @@ mod tests {
             result[0].bound_upper_affine,
             Some(AffineBound {
                 constant: 5.0,
-                terms: vec![]
+                terms: vec![],
+                products: vec![],
             })
         );
         assert_eq!(result[0].bound_lower_affine, None);
@@ -2418,7 +2515,8 @@ mod tests {
             result[0].bound_upper_affine,
             Some(AffineBound {
                 constant: 12352.0,
-                terms: vec![]
+                terms: vec![],
+                products: vec![],
             })
         );
         assert_eq!(result[0].bound_lower_affine, None);
@@ -2473,7 +2571,8 @@ mod tests {
             result[0].bound_upper_affine,
             Some(AffineBound {
                 constant: 73.0,
-                terms: vec![]
+                terms: vec![],
+                products: vec![],
             })
         );
         assert_eq!(result[0].bound_lower_affine, None);
@@ -3498,7 +3597,8 @@ mod tests {
             result[0].bound_lower_affine,
             Some(AffineBound {
                 constant: 0.0,
-                terms: vec![]
+                terms: vec![],
+                products: vec![],
             }),
             "an all-variable RHS supplies an explicit zero bound, not \"no bound\""
         );

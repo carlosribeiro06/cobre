@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/generic_parameters.schema.json",
+  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/generic_constraints.schema.json",
   "scalar_parameters": [
     {
       "id": 1,
@@ -36,6 +36,12 @@
         "tag": "scaled_max_stored_energy",
         "hydro_id": 1
       }
+    },
+    {
+      "id": 5,
+      "name": "pct_vminop",
+      "kind": "per_stage",
+      "values": [[0, 0.25], [1, 0.30]]
     }
   ]
 }

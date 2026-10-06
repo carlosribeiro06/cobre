@@ -366,6 +366,7 @@ mod tests {
             bound_upper_affine: Some(AffineBound {
                 constant: 12.0,
                 terms: vec![(0.5, EntityId(7))],
+                products: vec![],
             }),
         };
 
@@ -385,6 +386,7 @@ mod tests {
             Some(AffineBound {
                 constant: 12.0,
                 terms: vec![(0.5, EntityId(7))],
+                products: vec![],
             }),
             "affine bound remainder must survive broadcast round-trip"
         );

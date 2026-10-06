@@ -503,10 +503,11 @@ fn canonical_term_key(term: &LinearTerm) -> ((u8, i32, i64, i64), u8, u64, u64) 
     )
 }
 
-/// A generic constraint's symbolic bound endpoint: `constant + Σ coefᵢ·@paramᵢ`.
+/// A generic constraint's symbolic bound endpoint: `constant + Σ coefᵢ·@paramᵢ + Σ scaleⱼ·@leftⱼ·@rightⱼ`.
 ///
 /// Each `(coef, param_id)` term resolves through `param_id`'s `(stage, block)`
-/// axis and is summed with `constant`. [`AffineBound::single`] is the
+/// axis and is summed with `constant`. Each `(scale, left, right)` product
+/// resolves both parameters and multiplies them. [`AffineBound::single`] is the
 /// single-`@name`-ref special case: `constant = 0.0` and one term at
 /// coefficient `1.0`, which resolves to exactly the named parameter's value
 /// (`0.0 + 1.0 * x == x` in `f64`).
@@ -517,6 +518,10 @@ pub struct AffineBound {
     pub constant: f64,
     /// Ordered `(coefficient, parameter_id)` terms summed onto `constant`.
     pub terms: Vec<(f64, EntityId)>,
+    /// Ordered `(scale, left_param_id, right_param_id)` product terms.
+    /// Each product resolves to `scale * resolve(left) * resolve(right)`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub products: Vec<(f64, EntityId, EntityId)>,
 }
 
 impl AffineBound {
@@ -526,12 +531,18 @@ impl AffineBound {
         Self {
             constant: 0.0,
             terms: vec![(1.0, id)],
+            products: vec![],
         }
     }
 
     /// Iterate over the parameter ids referenced by this bound's terms.
     pub fn params(&self) -> impl Iterator<Item = EntityId> + '_ {
         self.terms.iter().map(|&(_, id)| id)
+    }
+
+    /// Iterate over the parameter ids referenced by this bound's product terms.
+    pub fn product_params(&self) -> impl Iterator<Item = (EntityId, EntityId)> + '_ {
+        self.products.iter().map(|&(_, left, right)| (left, right))
     }
 }
 
@@ -1328,6 +1339,7 @@ mod tests {
         let bound = AffineBound {
             constant: 12.0,
             terms: vec![(0.5, EntityId(7)), (-2.0, EntityId(9))],
+            products: vec![],
         };
         assert_eq!(
             bound.params().collect::<Vec<_>>(),

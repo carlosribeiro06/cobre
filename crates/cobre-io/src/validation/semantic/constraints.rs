@@ -145,7 +145,21 @@ fn constraint_parameter_ids(constraint: &GenericConstraint) -> impl Iterator<Ite
         .bound_upper_affine
         .iter()
         .flat_map(AffineBound::params);
-    term_ids.chain(lower_ids).chain(upper_ids)
+    let lower_product_ids = constraint
+        .bound_lower_affine
+        .iter()
+        .flat_map(AffineBound::product_params)
+        .flat_map(|(left, right)| [left, right]);
+    let upper_product_ids = constraint
+        .bound_upper_affine
+        .iter()
+        .flat_map(AffineBound::product_params)
+        .flat_map(|(left, right)| [left, right]);
+    term_ids
+        .chain(lower_ids)
+        .chain(upper_ids)
+        .chain(lower_product_ids)
+        .chain(upper_product_ids)
 }
 
 /// Which per-block storage boundary a term references, and the block selector.
