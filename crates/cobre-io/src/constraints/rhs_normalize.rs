@@ -55,6 +55,7 @@ pub(crate) enum RelOp {
 ///
 /// Returns an error if a `ParamProduct` term appears on the LHS — parameter
 /// products are only valid in bound position (RHS of a relational operator).
+#[allow(clippy::type_complexity)]
 pub(crate) fn normalize(
     lhs: Vec<SideTerm>,
     rhs: Vec<SideTerm>,
@@ -385,7 +386,7 @@ mod tests {
         }];
         let (terms, lower, _upper) = normalize(lhs, rhs, RelOp::Ge).unwrap();
         assert_eq!(terms.len(), 1);
-        let bound = lower.expect("lower bound should be set");
+        let bound = lower.as_ref().unwrap();
         assert_eq!(bound.products.len(), 1);
         assert_eq!(bound.products[0], (2.5, EntityId(1), EntityId(2)));
     }

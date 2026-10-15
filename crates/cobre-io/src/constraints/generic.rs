@@ -1220,57 +1220,53 @@ fn try_parse_param_product(
     name_to_id: &HashMap<String, EntityId>,
 ) -> Result<Option<(Vec<SplitTerm>, usize)>, String> {
     // Pattern 1: `@p * @q`
-    if let Some(Token::ParamRef(first_name)) = tokens.get(pos) {
-        if tokens.get(pos + 1) == Some(&Token::Star) {
-            if let Some(Token::ParamRef(second_name)) = tokens.get(pos + 2) {
-                // Check for chained product: `@p * @q * @r`
-                if tokens.get(pos + 3) == Some(&Token::Star) {
-                    return Err(format!(
-                        "chained parameter products (@{first_name} * @{second_name} * ...) are not supported; \
-                         use at most two parameters per product"
-                    ));
-                }
-                let left = resolve_param_ref(first_name, name_to_id)?;
-                let right = resolve_param_ref(second_name, name_to_id)?;
-                return Ok(Some((
-                    vec![SplitTerm::ParamProduct {
-                        scale: sign,
-                        left,
-                        right,
-                    }],
-                    pos + 3,
-                )));
-            }
+    if let Some(Token::ParamRef(first_name)) = tokens.get(pos)
+        && tokens.get(pos + 1) == Some(&Token::Star)
+        && let Some(Token::ParamRef(second_name)) = tokens.get(pos + 2)
+    {
+        // Check for chained product: `@p * @q * @r`
+        if tokens.get(pos + 3) == Some(&Token::Star) {
+            return Err(format!(
+                "chained parameter products (@{first_name} * @{second_name} * ...) are not supported; \
+                 use at most two parameters per product"
+            ));
         }
+        let left = resolve_param_ref(first_name, name_to_id)?;
+        let right = resolve_param_ref(second_name, name_to_id)?;
+        return Ok(Some((
+            vec![SplitTerm::ParamProduct {
+                scale: sign,
+                left,
+                right,
+            }],
+            pos + 3,
+        )));
     }
 
     // Pattern 2: `coef * @p * @q`
-    if let Some(Token::Number(coef)) = tokens.get(pos) {
-        if tokens.get(pos + 1) == Some(&Token::Star) {
-            if let Some(Token::ParamRef(first_name)) = tokens.get(pos + 2) {
-                if tokens.get(pos + 3) == Some(&Token::Star) {
-                    if let Some(Token::ParamRef(second_name)) = tokens.get(pos + 4) {
-                        // Check for chained product: `coef * @p * @q * @r`
-                        if tokens.get(pos + 5) == Some(&Token::Star) {
-                            return Err(format!(
-                                "chained parameter products ({coef} * @{first_name} * @{second_name} * ...) \
-                                 are not supported; use at most two parameters per product"
-                            ));
-                        }
-                        let left = resolve_param_ref(first_name, name_to_id)?;
-                        let right = resolve_param_ref(second_name, name_to_id)?;
-                        return Ok(Some((
-                            vec![SplitTerm::ParamProduct {
-                                scale: sign * coef,
-                                left,
-                                right,
-                            }],
-                            pos + 5,
-                        )));
-                    }
-                }
-            }
+    if let Some(Token::Number(coef)) = tokens.get(pos)
+        && tokens.get(pos + 1) == Some(&Token::Star)
+        && let Some(Token::ParamRef(first_name)) = tokens.get(pos + 2)
+        && tokens.get(pos + 3) == Some(&Token::Star)
+        && let Some(Token::ParamRef(second_name)) = tokens.get(pos + 4)
+    {
+        // Check for chained product: `coef * @p * @q * @r`
+        if tokens.get(pos + 5) == Some(&Token::Star) {
+            return Err(format!(
+                "chained parameter products ({coef} * @{first_name} * @{second_name} * ...) \
+                 are not supported; use at most two parameters per product"
+            ));
         }
+        let left = resolve_param_ref(first_name, name_to_id)?;
+        let right = resolve_param_ref(second_name, name_to_id)?;
+        return Ok(Some((
+            vec![SplitTerm::ParamProduct {
+                scale: sign * coef,
+                left,
+                right,
+            }],
+            pos + 5,
+        )));
     }
 
     Ok(None)
