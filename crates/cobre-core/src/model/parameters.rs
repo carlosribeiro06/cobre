@@ -161,6 +161,19 @@ pub enum ComputedParameter {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
+    /// Scaled integrated equivalent productivity for stored-energy constraints (own scope).
+    ///
+    /// Returns `ρ_eq_integrado × ENERGY_FACTOR` where
+    /// `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
+    ///
+    /// Unit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.
+    ///
+    /// Unlike `ScaledIntegratedAccumulatedProductivity` (cascade scope), this variant
+    /// considers only the plant's own head effect, not the cascade contribution.
+    ScaledIntegratedEquivalentProductivity {
+        /// Hydro plant identifier.
+        hydro_id: EntityId,
+    },
 }
 
 /// How the numeric value of a [`ScalarParameter`] is determined at solve time.
@@ -508,12 +521,15 @@ mod tests {
             ComputedParameter::ScaledMaxStoredEnergy {
                 hydro_id: EntityId(12),
             },
+            ComputedParameter::ScaledIntegratedEquivalentProductivity {
+                hydro_id: EntityId(13),
+            },
         ];
 
         assert_eq!(
             variants.len(),
-            12,
-            "ComputedParameter must have exactly 12 variants"
+            13,
+            "ComputedParameter must have exactly 13 variants"
         );
 
         // No `_` arm: adding a variant without updating here is a compile error.
@@ -537,6 +553,9 @@ mod tests {
                     "ScaledIntegratedAccumulatedProductivity"
                 }
                 ComputedParameter::ScaledMaxStoredEnergy { .. } => "ScaledMaxStoredEnergy",
+                ComputedParameter::ScaledIntegratedEquivalentProductivity { .. } => {
+                    "ScaledIntegratedEquivalentProductivity"
+                }
             };
         }
     }
