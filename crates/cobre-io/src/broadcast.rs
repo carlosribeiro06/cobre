@@ -73,6 +73,8 @@ pub enum BroadcastComputedParameter {
     ScaledIntegratedAccumulatedProductivity(EntityId),
     /// Scaled maximum stored energy (`EARM_max`).
     ScaledMaxStoredEnergy(EntityId),
+    /// Scaled integrated equivalent productivity (own-scope stored-energy coefficient).
+    ScaledIntegratedEquivalentProductivity(EntityId),
 }
 
 impl From<&ScalarParameter> for BroadcastScalarParameter {
@@ -152,6 +154,9 @@ impl From<ComputedParameter> for BroadcastComputedParameter {
             ComputedParameter::ScaledMaxStoredEnergy { hydro_id } => {
                 Self::ScaledMaxStoredEnergy(hydro_id)
             }
+            ComputedParameter::ScaledIntegratedEquivalentProductivity { hydro_id } => {
+                Self::ScaledIntegratedEquivalentProductivity(hydro_id)
+            }
         }
     }
 }
@@ -190,6 +195,9 @@ impl From<BroadcastComputedParameter> for ComputedParameter {
             }
             BroadcastComputedParameter::ScaledMaxStoredEnergy(hydro_id) => {
                 Self::ScaledMaxStoredEnergy { hydro_id }
+            }
+            BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(hydro_id) => {
+                Self::ScaledIntegratedEquivalentProductivity { hydro_id }
             }
         }
     }
@@ -558,6 +566,10 @@ mod tests {
                 BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(0)),
                 0x0B,
             ),
+            (
+                BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(EntityId(0)),
+                0x0C,
+            ),
         ];
         for (variant, discriminant) in cases {
             let bytes = postcard::to_allocvec(variant).unwrap();
@@ -591,6 +603,15 @@ mod tests {
     #[test]
     fn broadcast_computed_parameter_scaled_max_stored_energy_round_trip() {
         let variant = BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(42));
+        let bytes = postcard::to_allocvec(&variant).unwrap();
+        let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored, variant);
+    }
+
+    #[test]
+    fn broadcast_computed_parameter_scaled_integrated_equivalent_productivity_round_trip() {
+        let variant =
+            BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(EntityId(19));
         let bytes = postcard::to_allocvec(&variant).unwrap();
         let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
         assert_eq!(restored, variant);
