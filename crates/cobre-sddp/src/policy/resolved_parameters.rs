@@ -487,7 +487,8 @@ fn resolve_computed(
         | ComputedParameter::IntegratedAccumulatedProductivity { hydro_id }
         | ComputedParameter::MaxStoredEnergy { hydro_id }
         | ComputedParameter::ScaledIntegratedAccumulatedProductivity { hydro_id }
-        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id } => hydro_id,
+        | ComputedParameter::ScaledMaxStoredEnergy { hydro_id }
+        | ComputedParameter::ScaledIntegratedEquivalentProductivity { hydro_id } => hydro_id,
     };
 
     let hydro_idx = hydro_index.get(&hydro_id).copied().ok_or_else(|| {
@@ -584,6 +585,11 @@ fn resolve_computed(
                 let useful_volume = hydro.max_storage_hm3 - hydro.min_storage_hm3;
                 // ρ_int [MW/(m³/s)] × V [hm³] × ENERGY_FACTOR = MWh (EARM_max)
                 rho_integrated * useful_volume * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
+            }
+            ComputedParameter::ScaledIntegratedEquivalentProductivity { .. } => {
+                let rho_integrated =
+                    energy_conversion.integrated_equivalent_productivity(hydro_idx, t);
+                rho_integrated * ENERGY_FACTOR_MWH_PER_HM3_PER_MW_PER_M3S
             }
         };
         values.push(value);
@@ -1534,6 +1540,136 @@ mod tests {
                 (table.get(EntityId(0), t, 0) - expected).abs() < 1e-9,
                 "stage {t}: expected {expected}, got {}",
                 table.get(EntityId(0), t, 0)
+            );
+        }
+    }
+
+    #[test]
+    fn scaled_integrated_equivalent_productivity_multiplies_by_energy_factor() {
+        let n_stages = 4;
+        let (hydros, base_ec, override_table, stage_to_season, stage_ids) =
+            make_setup_inputs(n_stages);
+
+        let integrated_equivalent: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| {
+                (0..n_stages)
+                    .map(|t| 50.0 + h as f64 + t as f64 * 0.1)
+                    .collect()
+            })
+            .collect();
+        let integrated_accumulated: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| {
+                (0..n_stages)
+                    .map(|t| 100.0 + h as f64 * 10.0 + t as f64)
+                    .collect()
+            })
+            .collect();
+        let energy_conversion =
+            base_ec.with_integrated(integrated_equivalent.clone(), integrated_accumulated);
+
+        let stage_hours: Vec<f64> = vec![730.0; n_stages];
+
+        let params = vec![make_param(
+            0,
+            ParameterKind::Computed {
+                computed_spec: ComputedParameter::ScaledIntegratedEquivalentProductivity {
+                    hydro_id: EntityId(0),
+                },
+            },
+        )];
+
+        let table = build_resolved_parameters(
+            &params,
+            &energy_conversion,
+            &override_table,
+            &hydros,
+            &stage_to_season,
+            &stage_ids,
+            &one_block_per_stage(n_stages),
+            &stage_hours,
+            1_000_000.0,
+        )
+        .unwrap();
+
+        const ENERGY_FACTOR: f64 = 1.0e6 / 3600.0;
+        for t in 0..n_stages {
+            let rho_integrated = integrated_equivalent[0][t];
+            let expected = rho_integrated * ENERGY_FACTOR;
+            assert!(
+                (table.get(EntityId(0), t, 0) - expected).abs() < 1e-9,
+                "stage {t}: expected {expected}, got {}",
+                table.get(EntityId(0), t, 0)
+            );
+        }
+    }
+
+    #[test]
+    fn scaled_integrated_own_scope_differs_from_cascade_scope() {
+        let n_stages = 2;
+        let (hydros, base_ec, override_table, stage_to_season, stage_ids) =
+            make_setup_inputs(n_stages);
+
+        let integrated_equivalent: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| (0..n_stages).map(|t| 10.0 + h as f64 + t as f64).collect())
+            .collect();
+        let integrated_accumulated: Vec<Vec<f64>> = (0..2usize)
+            .map(|h| {
+                (0..n_stages)
+                    .map(|t| 50.0 + h as f64 * 5.0 + t as f64 * 2.0)
+                    .collect()
+            })
+            .collect();
+        let energy_conversion = base_ec.with_integrated(
+            integrated_equivalent.clone(),
+            integrated_accumulated.clone(),
+        );
+
+        assert_ne!(
+            integrated_equivalent[0][0].to_bits(),
+            integrated_accumulated[0][0].to_bits(),
+            "fixture must have distinct integrated grids"
+        );
+
+        let params = vec![
+            make_param(
+                0,
+                ParameterKind::Computed {
+                    computed_spec: ComputedParameter::ScaledIntegratedEquivalentProductivity {
+                        hydro_id: EntityId(0),
+                    },
+                },
+            ),
+            make_param(
+                1,
+                ParameterKind::Computed {
+                    computed_spec: ComputedParameter::ScaledIntegratedAccumulatedProductivity {
+                        hydro_id: EntityId(0),
+                    },
+                },
+            ),
+        ];
+
+        let table = build_resolved_parameters(
+            &params,
+            &energy_conversion,
+            &override_table,
+            &hydros,
+            &stage_to_season,
+            &stage_ids,
+            &one_block_per_stage(n_stages),
+            &default_stage_hours(n_stages),
+            1_000_000.0,
+        )
+        .unwrap();
+
+        for t in 0..n_stages {
+            let own_scope = table.get(EntityId(0), t, 0);
+            let cascade_scope = table.get(EntityId(1), t, 0);
+            assert_ne!(
+                own_scope.to_bits(),
+                cascade_scope.to_bits(),
+                "stage {t}: own-scope and cascade-scope must resolve differently \
+                 when grids differ; own={own_scope}, cascade={cascade_scope}"
             );
         }
     }
