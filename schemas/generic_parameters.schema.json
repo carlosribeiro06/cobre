@@ -191,7 +191,7 @@
               "description": "Hydro plant identifier."
             },
             "tag": {
-              "const": "scaled_integrated_accumulated_productivity",
+              "const": "integrated_accumulated_productivity_mwh_per_hm3",
               "type": "string"
             }
           },
@@ -209,7 +209,7 @@
               "description": "Hydro plant identifier."
             },
             "tag": {
-              "const": "scaled_max_stored_energy",
+              "const": "max_stored_energy_mwh",
               "type": "string"
             }
           },
@@ -220,14 +220,14 @@
           "type": "object"
         },
         {
-          "description": "Scaled integrated equivalent productivity for stored-energy constraints (own scope).\n\nReturns `ρ_eq_integrado × ENERGY_FACTOR` where\n`ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.\n\nUnit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.\n\nUnlike `ScaledIntegratedAccumulatedProductivity` (cascade scope), this variant\nconsiders only the plant's own head effect, not the cascade contribution.",
+          "description": "Scaled integrated equivalent productivity for stored-energy constraints (own scope).\n\nReturns `ρ_eq_integrado × ENERGY_FACTOR` where\n`ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.\n\nUnit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.\n\nUnlike `IntegratedAccumulatedProductivityMwhPerHm3` (cascade scope), this variant\nconsiders only the plant's own head effect, not the cascade contribution.",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
               "description": "Hydro plant identifier."
             },
             "tag": {
-              "const": "scaled_integrated_equivalent_productivity",
+              "const": "integrated_equivalent_productivity_mwh_per_hm3",
               "type": "string"
             }
           },

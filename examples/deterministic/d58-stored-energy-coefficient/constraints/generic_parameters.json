@@ -6,7 +6,7 @@
       "name": "rho_scaled_h0",
       "kind": "computed",
       "computed_spec": {
-        "tag": "scaled_integrated_accumulated_productivity",
+        "tag": "integrated_accumulated_productivity_mwh_per_hm3",
         "hydro_id": 0
       }
     },
@@ -15,7 +15,7 @@
       "name": "rho_scaled_h1",
       "kind": "computed",
       "computed_spec": {
-        "tag": "scaled_integrated_accumulated_productivity",
+        "tag": "integrated_accumulated_productivity_mwh_per_hm3",
         "hydro_id": 1
       }
     },
@@ -24,7 +24,7 @@
       "name": "earm_max_h0",
       "kind": "computed",
       "computed_spec": {
-        "tag": "scaled_max_stored_energy",
+        "tag": "max_stored_energy_mwh",
         "hydro_id": 0
       }
     },
@@ -33,7 +33,7 @@
       "name": "earm_max_h1",
       "kind": "computed",
       "computed_spec": {
-        "tag": "scaled_max_stored_energy",
+        "tag": "max_stored_energy_mwh",
         "hydro_id": 1
       }
     },

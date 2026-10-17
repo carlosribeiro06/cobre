@@ -133,44 +133,28 @@ pub enum ComputedParameter {
     /// Maximum stored energy: `integrated_accumulated_productivity * (V_hi -
     /// V_lo)` over the hydro plant's physical storage range (stage-invariant).
     /// Unit is productivity `[MW/(m3/s)]` times volume `[hm3]` — the same unit
-    /// as a productivity-times-storage-volume constraint term, not `MWh`.
+    /// as a productivity-times-storage-volume constraint term, not `MWh`
+    /// (`max_stored_energy_mwh` is the `MWh` form).
     MaxStoredEnergy {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
-    /// Scaled integrated accumulated productivity for stored-energy constraints.
-    ///
-    /// Returns `ρ_acum_integrado × ENERGY_FACTOR` where
-    /// `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
-    ///
-    /// Unit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.
-    ///
-    /// Used as the coefficient in `VminOP` (minimum stored energy) constraints:
-    /// `Σ scaled_productivity(h) × useful_volume_final(h) ≥ E_min [MWh]`.
-    ScaledIntegratedAccumulatedProductivity {
+    /// `integrated_accumulated_productivity` in `[MWh/hm3]` (times `10⁶/3600`):
+    /// times a useful volume `[hm3]` it gives stored energy `[MWh]` (cascade scope).
+    IntegratedAccumulatedProductivityMwhPerHm3 {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
-    /// Scaled maximum stored energy for `VminOP` constraint bounds.
-    ///
-    /// Computes `ρ_acum_integrado × (Vmax - Vmin) × ENERGY_FACTOR`
-    /// where `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
-    ///
-    /// Unit: `[MWh]`. This is `EARM_max`, the maximum storable energy for the plant.
-    ScaledMaxStoredEnergy {
+    /// `max_stored_energy` in `[MWh]` (times `10⁶/3600`): the energy stored over
+    /// the plant's physical storage range, valued with the cascade's productivity.
+    MaxStoredEnergyMwh {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
-    /// Scaled integrated equivalent productivity for stored-energy constraints (own scope).
-    ///
-    /// Returns `ρ_eq_integrado × ENERGY_FACTOR` where
-    /// `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.
-    ///
-    /// Unit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.
-    ///
-    /// Unlike `ScaledIntegratedAccumulatedProductivity` (cascade scope), this variant
-    /// considers only the plant's own head effect, not the cascade contribution.
-    ScaledIntegratedEquivalentProductivity {
+    /// `integrated_equivalent_productivity` in `[MWh/hm3]` (times `10⁶/3600`):
+    /// times a useful volume `[hm3]` it gives the plant's own stored energy
+    /// `[MWh]`, without the cascade below it.
+    IntegratedEquivalentProductivityMwhPerHm3 {
         /// Hydro plant identifier.
         hydro_id: EntityId,
     },
@@ -515,13 +499,13 @@ mod tests {
             ComputedParameter::MaxStoredEnergy {
                 hydro_id: EntityId(10),
             },
-            ComputedParameter::ScaledIntegratedAccumulatedProductivity {
+            ComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3 {
                 hydro_id: EntityId(11),
             },
-            ComputedParameter::ScaledMaxStoredEnergy {
+            ComputedParameter::MaxStoredEnergyMwh {
                 hydro_id: EntityId(12),
             },
-            ComputedParameter::ScaledIntegratedEquivalentProductivity {
+            ComputedParameter::IntegratedEquivalentProductivityMwhPerHm3 {
                 hydro_id: EntityId(13),
             },
         ];
@@ -549,12 +533,12 @@ mod tests {
                     "IntegratedAccumulatedProductivity"
                 }
                 ComputedParameter::MaxStoredEnergy { .. } => "MaxStoredEnergy",
-                ComputedParameter::ScaledIntegratedAccumulatedProductivity { .. } => {
-                    "ScaledIntegratedAccumulatedProductivity"
+                ComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3 { .. } => {
+                    "IntegratedAccumulatedProductivityMwhPerHm3"
                 }
-                ComputedParameter::ScaledMaxStoredEnergy { .. } => "ScaledMaxStoredEnergy",
-                ComputedParameter::ScaledIntegratedEquivalentProductivity { .. } => {
-                    "ScaledIntegratedEquivalentProductivity"
+                ComputedParameter::MaxStoredEnergyMwh { .. } => "MaxStoredEnergyMwh",
+                ComputedParameter::IntegratedEquivalentProductivityMwhPerHm3 { .. } => {
+                    "IntegratedEquivalentProductivityMwhPerHm3"
                 }
             };
         }

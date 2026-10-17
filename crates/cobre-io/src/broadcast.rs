@@ -69,12 +69,12 @@ pub enum BroadcastComputedParameter {
     IntegratedAccumulatedProductivity(EntityId),
     /// Maximum stored energy over the physical per-stage storage range.
     MaxStoredEnergy(EntityId),
-    /// Scaled integrated accumulated productivity (stored-energy coefficient).
-    ScaledIntegratedAccumulatedProductivity(EntityId),
-    /// Scaled maximum stored energy (`EARM_max`).
-    ScaledMaxStoredEnergy(EntityId),
-    /// Scaled integrated equivalent productivity (own-scope stored-energy coefficient).
-    ScaledIntegratedEquivalentProductivity(EntityId),
+    /// Storage-range mean accumulated productivity in `MWh/hm³`.
+    IntegratedAccumulatedProductivityMwhPerHm3(EntityId),
+    /// Maximum stored energy in `MWh`.
+    MaxStoredEnergyMwh(EntityId),
+    /// Storage-range mean equivalent productivity in `MWh/hm³`.
+    IntegratedEquivalentProductivityMwhPerHm3(EntityId),
 }
 
 impl From<&ScalarParameter> for BroadcastScalarParameter {
@@ -148,14 +148,14 @@ impl From<ComputedParameter> for BroadcastComputedParameter {
                 Self::IntegratedAccumulatedProductivity(hydro_id)
             }
             ComputedParameter::MaxStoredEnergy { hydro_id } => Self::MaxStoredEnergy(hydro_id),
-            ComputedParameter::ScaledIntegratedAccumulatedProductivity { hydro_id } => {
-                Self::ScaledIntegratedAccumulatedProductivity(hydro_id)
+            ComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3 { hydro_id } => {
+                Self::IntegratedAccumulatedProductivityMwhPerHm3(hydro_id)
             }
-            ComputedParameter::ScaledMaxStoredEnergy { hydro_id } => {
-                Self::ScaledMaxStoredEnergy(hydro_id)
+            ComputedParameter::MaxStoredEnergyMwh { hydro_id } => {
+                Self::MaxStoredEnergyMwh(hydro_id)
             }
-            ComputedParameter::ScaledIntegratedEquivalentProductivity { hydro_id } => {
-                Self::ScaledIntegratedEquivalentProductivity(hydro_id)
+            ComputedParameter::IntegratedEquivalentProductivityMwhPerHm3 { hydro_id } => {
+                Self::IntegratedEquivalentProductivityMwhPerHm3(hydro_id)
             }
         }
     }
@@ -190,14 +190,14 @@ impl From<BroadcastComputedParameter> for ComputedParameter {
             BroadcastComputedParameter::MaxStoredEnergy(hydro_id) => {
                 Self::MaxStoredEnergy { hydro_id }
             }
-            BroadcastComputedParameter::ScaledIntegratedAccumulatedProductivity(hydro_id) => {
-                Self::ScaledIntegratedAccumulatedProductivity { hydro_id }
+            BroadcastComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3(hydro_id) => {
+                Self::IntegratedAccumulatedProductivityMwhPerHm3 { hydro_id }
             }
-            BroadcastComputedParameter::ScaledMaxStoredEnergy(hydro_id) => {
-                Self::ScaledMaxStoredEnergy { hydro_id }
+            BroadcastComputedParameter::MaxStoredEnergyMwh(hydro_id) => {
+                Self::MaxStoredEnergyMwh { hydro_id }
             }
-            BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(hydro_id) => {
-                Self::ScaledIntegratedEquivalentProductivity { hydro_id }
+            BroadcastComputedParameter::IntegratedEquivalentProductivityMwhPerHm3(hydro_id) => {
+                Self::IntegratedEquivalentProductivityMwhPerHm3 { hydro_id }
             }
         }
     }
@@ -555,15 +555,15 @@ mod tests {
                 0x09,
             ),
             (
-                BroadcastComputedParameter::ScaledIntegratedAccumulatedProductivity(EntityId(0)),
+                BroadcastComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3(EntityId(0)),
                 0x0A,
             ),
             (
-                BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(0)),
+                BroadcastComputedParameter::MaxStoredEnergyMwh(EntityId(0)),
                 0x0B,
             ),
             (
-                BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(EntityId(0)),
+                BroadcastComputedParameter::IntegratedEquivalentProductivityMwhPerHm3(EntityId(0)),
                 0x0C,
             ),
         ];
@@ -597,20 +597,16 @@ mod tests {
     }
 
     #[test]
-    fn broadcast_computed_parameter_scaled_max_stored_energy_round_trip() {
-        let variant = BroadcastComputedParameter::ScaledMaxStoredEnergy(EntityId(42));
-        let bytes = postcard::to_allocvec(&variant).unwrap();
-        let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
-        assert_eq!(restored, variant);
-    }
-
-    #[test]
-    fn broadcast_computed_parameter_scaled_integrated_equivalent_productivity_round_trip() {
-        let variant =
-            BroadcastComputedParameter::ScaledIntegratedEquivalentProductivity(EntityId(19));
-        let bytes = postcard::to_allocvec(&variant).unwrap();
-        let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
-        assert_eq!(restored, variant);
+    fn broadcast_computed_parameter_mwh_tags_round_trip() {
+        for variant in [
+            BroadcastComputedParameter::IntegratedAccumulatedProductivityMwhPerHm3(EntityId(23)),
+            BroadcastComputedParameter::MaxStoredEnergyMwh(EntityId(42)),
+            BroadcastComputedParameter::IntegratedEquivalentProductivityMwhPerHm3(EntityId(19)),
+        ] {
+            let bytes = postcard::to_allocvec(&variant).unwrap();
+            let restored: BroadcastComputedParameter = postcard::from_bytes(&bytes).unwrap();
+            assert_eq!(restored, variant);
+        }
     }
 
     #[test]
