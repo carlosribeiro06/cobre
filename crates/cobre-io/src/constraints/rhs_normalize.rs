@@ -24,13 +24,10 @@ pub(crate) enum SideTerm {
     Constant(f64),
     /// A resolved `(coefficient, parameter_id)` scalar with no variable.
     Param(f64, EntityId),
-    /// A product of two parameters: `scale * @left * @right`.
+    /// A resolved `scale * @left * @right` product of two scalar parameters.
     ParamProduct {
-        /// Scale factor applied to the product.
         scale: f64,
-        /// Left parameter ID.
         left: EntityId,
-        /// Right parameter ID.
         right: EntityId,
     },
 }
@@ -50,27 +47,11 @@ pub(crate) enum RelOp {
 ///
 /// Returns the merged variable term list (still authoring-order; the caller
 /// canonicalizes) and the operator's targeted [`AffineBound`] endpoint(s).
-///
-/// # Errors
-///
-/// Returns an error if a `ParamProduct` term appears on the LHS — parameter
-/// products are only valid in bound position (RHS of a relational operator).
-#[allow(clippy::type_complexity)]
 pub(crate) fn normalize(
     lhs: Vec<SideTerm>,
     rhs: Vec<SideTerm>,
     op: RelOp,
-) -> Result<(Vec<LinearTerm>, Option<AffineBound>, Option<AffineBound>), String> {
-    // Validate: ParamProduct must not appear on LHS
-    for term in &lhs {
-        if let SideTerm::ParamProduct { left, right, .. } = term {
-            return Err(format!(
-                "parameter product @{} * @{} is only valid in bound position (RHS); found on LHS",
-                left.0, right.0
-            ));
-        }
-    }
-
+) -> (Vec<LinearTerm>, Option<AffineBound>, Option<AffineBound>) {
     let mut variable_terms: Vec<LinearTerm> = Vec::with_capacity(lhs.len() + rhs.len());
     let mut constant = 0.0_f64;
     let mut param_terms: Vec<(f64, EntityId)> = Vec::new();
@@ -91,15 +72,13 @@ pub(crate) fn normalize(
             SideTerm::Variable(lt) => variable_terms.push(lt),
             SideTerm::Constant(v) => constant -= v,
             SideTerm::Param(coef, id) => param_terms.push((-coef, id)),
-            SideTerm::ParamProduct { .. } => {
-                // Already validated above — unreachable
-                unreachable!("ParamProduct on LHS should have been rejected");
+            SideTerm::ParamProduct { scale, left, right } => {
+                product_terms.push((-scale, left, right));
             }
         }
     }
 
     let variable_terms = fold_variable_terms(variable_terms);
-
     let bound = AffineBound {
         constant,
         terms: param_terms,
@@ -111,7 +90,7 @@ pub(crate) fn normalize(
         RelOp::Eq => (Some(bound.clone()), Some(bound)),
     };
 
-    Ok((variable_terms, lower, upper))
+    (variable_terms, lower, upper)
 }
 
 /// Merge terms sharing an identical variable and coefficient kind — summing
@@ -215,7 +194,7 @@ mod tests {
     fn normalize_rhs_variable_sign_flips_into_lhs() {
         let lhs = vec![SideTerm::Variable(LinearTerm::literal(1.0, tg(5)))];
         let rhs = vec![SideTerm::Variable(LinearTerm::literal(0.87, hg(140)))];
-        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Le).unwrap();
+        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Le);
         assert_eq!(terms.len(), 2);
         assert_eq!(terms[0].variable, hg(140));
         assert!((effective(&terms[0]) - (-0.87)).abs() < f64::EPSILON);
@@ -239,7 +218,7 @@ mod tests {
     #[test]
     fn normalize_unmerged_rhs_literal_negates_coefficient_not_scale() {
         let rhs = vec![SideTerm::Variable(LinearTerm::literal(0.87, hg(140)))];
-        let (terms, _, _) = normalize(vec![], rhs, RelOp::Le).unwrap();
+        let (terms, _, _) = normalize(vec![], rhs, RelOp::Le);
         assert_eq!(terms.len(), 1);
         assert_eq!(terms[0].coefficient, CoefficientRef::Literal(-0.87));
         assert!((terms[0].scale - 1.0).abs() < f64::EPSILON);
@@ -254,7 +233,7 @@ mod tests {
             SideTerm::Variable(LinearTerm::literal(-1.0, hg(0))),
         ];
         let rhs = vec![SideTerm::Constant(5.0)];
-        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Le).unwrap();
+        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Le);
         assert!(terms.is_empty(), "net-zero column must be dropped");
         assert_eq!(lower, None);
         assert_eq!(
@@ -275,7 +254,7 @@ mod tests {
             SideTerm::Variable(LinearTerm::literal(2.0, hg(0))),
             SideTerm::Variable(LinearTerm::literal(3.0, hg(0))),
         ];
-        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le).unwrap();
+        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le);
         assert_eq!(terms.len(), 1);
         assert!((effective(&terms[0]) - 5.0).abs() < f64::EPSILON);
     }
@@ -288,7 +267,7 @@ mod tests {
             SideTerm::Variable(LinearTerm::literal(1.0, hg(0))),
             SideTerm::Variable(LinearTerm::parameter(EntityId(9), 1.0, hg(0))),
         ];
-        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le).unwrap();
+        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le);
         assert_eq!(terms.len(), 2, "distinct coefficient kinds must not merge");
     }
 
@@ -300,7 +279,7 @@ mod tests {
             SideTerm::Variable(LinearTerm::parameter(EntityId(9), 2.0, hg(0))),
             SideTerm::Variable(LinearTerm::parameter(EntityId(9), 3.0, hg(0))),
         ];
-        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le).unwrap();
+        let (terms, _, _) = normalize(lhs, vec![], RelOp::Le);
         assert_eq!(terms.len(), 1);
         assert_eq!(terms[0].coefficient, CoefficientRef::Parameter(EntityId(9)));
         assert!((terms[0].scale - 5.0).abs() < f64::EPSILON);
@@ -313,7 +292,7 @@ mod tests {
     fn normalize_rhs_param_scalar_assigns_lower_as_single() {
         let lhs = vec![SideTerm::Variable(LinearTerm::literal(1.0, hg(3)))];
         let rhs = vec![SideTerm::Param(1.0, EntityId(42))];
-        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Ge).unwrap();
+        let (terms, lower, upper) = normalize(lhs, rhs, RelOp::Ge);
         assert_eq!(terms.len(), 1);
         assert_eq!(upper, None);
         assert_eq!(lower, Some(AffineBound::single(EntityId(42))));
@@ -323,7 +302,7 @@ mod tests {
     #[test]
     fn normalize_lhs_non_variable_terms_negate_into_bound() {
         let lhs = vec![SideTerm::Constant(10.0), SideTerm::Param(2.0, EntityId(7))];
-        let (terms, lower, upper) = normalize(lhs, vec![], RelOp::Le).unwrap();
+        let (terms, lower, upper) = normalize(lhs, vec![], RelOp::Le);
         assert!(terms.is_empty());
         assert_eq!(lower, None);
         assert_eq!(
@@ -340,7 +319,7 @@ mod tests {
     #[test]
     fn normalize_eq_assigns_both_endpoints_equal() {
         let rhs = vec![SideTerm::Constant(3.0)];
-        let (_, lower, upper) = normalize(vec![], rhs, RelOp::Eq).unwrap();
+        let (_, lower, upper) = normalize(vec![], rhs, RelOp::Eq);
         let expected = Some(AffineBound {
             constant: 3.0,
             terms: vec![],
@@ -350,28 +329,19 @@ mod tests {
         assert_eq!(upper, expected);
     }
 
-    /// A parameter product on the LHS is rejected with a clear error message.
+    /// A product on the left-hand side negates into the bound like any other
+    /// non-variable term (the parser keeps products to the right-hand side).
     #[test]
-    fn normalize_param_product_on_lhs_rejected() {
-        let lhs = vec![
-            SideTerm::ParamProduct {
-                scale: 1.0,
-                left: EntityId(1),
-                right: EntityId(2),
-            },
-            SideTerm::Variable(LinearTerm::literal(1.0, hg(0))),
-        ];
-        let rhs = vec![SideTerm::Constant(0.0)];
-        let result = normalize(lhs, rhs, RelOp::Ge);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(
-            err.contains("only valid in bound position"),
-            "error message should mention bound position: {err}"
-        );
-        assert!(
-            err.contains("LHS"),
-            "error message should mention LHS: {err}"
+    fn normalize_lhs_param_product_negates_into_bound() {
+        let lhs = vec![SideTerm::ParamProduct {
+            scale: 1.5,
+            left: EntityId(1),
+            right: EntityId(2),
+        }];
+        let (_, _, upper) = normalize(lhs, vec![], RelOp::Le);
+        assert_eq!(
+            upper.map(|b| b.products),
+            Some(vec![(-1.5, EntityId(1), EntityId(2))])
         );
     }
 
@@ -384,7 +354,7 @@ mod tests {
             left: EntityId(1),
             right: EntityId(2),
         }];
-        let (terms, lower, _upper) = normalize(lhs, rhs, RelOp::Ge).unwrap();
+        let (terms, lower, _upper) = normalize(lhs, rhs, RelOp::Ge);
         assert_eq!(terms.len(), 1);
         let bound = lower.as_ref().unwrap();
         assert_eq!(bound.products.len(), 1);
