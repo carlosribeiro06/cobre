@@ -1480,7 +1480,8 @@ mod tests {
         );
 
         let hydro_id = EntityId(1);
-        let computed = |id, computed_spec| make_param(id, ParameterKind::Computed { computed_spec });
+        let computed =
+            |id, computed_spec| make_param(id, ParameterKind::Computed { computed_spec });
         let params = vec![
             computed(
                 0,
@@ -1506,7 +1507,9 @@ mod tests {
         .unwrap();
 
         let physical_range = hydros[1].max_storage_hm3 - hydros[1].min_storage_hm3;
-        let grids = integrated_accumulated[1].iter().zip(&integrated_equivalent[1]);
+        let grids = integrated_accumulated[1]
+            .iter()
+            .zip(&integrated_equivalent[1]);
         for (t, (&rho_acum, &rho_eq)) in grids.enumerate() {
             let expected = [
                 rho_acum * MWH_PER_HM3_PER_MW_PER_M3S,
