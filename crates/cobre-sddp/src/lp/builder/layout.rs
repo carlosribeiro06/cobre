@@ -949,25 +949,14 @@ fn bound_affine_is_block_varying(
     constraint: &GenericConstraint,
     resolved: &ResolvedParameters,
 ) -> bool {
-    let bounds = [
+    [
         &constraint.bound_lower_affine,
         &constraint.bound_upper_affine,
-    ];
-    // Check linear terms
-    let linear_varying = bounds
-        .iter()
-        .copied()
-        .flatten()
-        .flat_map(AffineBound::params)
-        .any(|id| resolved.is_block_varying(id));
-    // Check product terms (both left and right params)
-    let product_varying = bounds
-        .iter()
-        .copied()
-        .flatten()
-        .flat_map(AffineBound::product_params)
-        .any(|(left, right)| resolved.is_block_varying(left) || resolved.is_block_varying(right));
-    linear_varying || product_varying
+    ]
+    .into_iter()
+    .flatten()
+    .flat_map(AffineBound::params)
+    .any(|id| resolved.is_block_varying(id))
 }
 
 /// Enumerate active generic constraint rows and assign their slack column indices.

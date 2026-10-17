@@ -342,9 +342,9 @@ mod tests {
     /// A generic constraint's affine bound remainder (`bound_upper_affine`) rides the
     /// constraint's derived serde through the `System` postcard wire — there is no
     /// hand-written mirror for `GenericConstraint`, so the restored System must equal
-    /// the original. Uses a genuine multi-component remainder (a nonzero constant plus
-    /// a scaled term), not just the `single` special case, to prove the whole shape
-    /// round-trips.
+    /// the original. Uses a genuine multi-component remainder (a nonzero constant, a
+    /// scaled term and a parameter product), not just the `single` special case, to
+    /// prove the whole shape round-trips.
     #[test]
     fn test_round_trip_generic_constraint_bound_ref() {
         use cobre_core::{
@@ -370,7 +370,7 @@ mod tests {
             bound_upper_affine: Some(AffineBound {
                 constant: 12.0,
                 terms: vec![(0.5, EntityId(7))],
-                products: vec![],
+                products: vec![(0.25, EntityId(7), EntityId(8))],
             }),
         };
 
@@ -390,7 +390,7 @@ mod tests {
             Some(AffineBound {
                 constant: 12.0,
                 terms: vec![(0.5, EntityId(7))],
-                products: vec![],
+                products: vec![(0.25, EntityId(7), EntityId(8))],
             }),
             "affine bound remainder must survive broadcast round-trip"
         );

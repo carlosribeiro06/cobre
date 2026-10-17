@@ -535,14 +535,22 @@ impl AffineBound {
         }
     }
 
-    /// Iterate over the parameter ids referenced by this bound's terms.
+    /// Every parameter id the bound reads: each term's id, then both operands of
+    /// each product.
     pub fn params(&self) -> impl Iterator<Item = EntityId> + '_ {
-        self.terms.iter().map(|&(_, id)| id)
+        let term_ids = self.terms.iter().map(|&(_, id)| id);
+        let product_ids = self
+            .products
+            .iter()
+            .flat_map(|&(_, left, right)| [left, right]);
+        term_ids.chain(product_ids)
     }
 
-    /// Iterate over the parameter ids referenced by this bound's product terms.
-    pub fn product_params(&self) -> impl Iterator<Item = (EntityId, EntityId)> + '_ {
-        self.products.iter().map(|&(_, left, right)| (left, right))
+    /// `true` when the bound reads no parameter, so it resolves to `constant`
+    /// on every `(stage, block)`.
+    #[must_use]
+    pub fn is_constant(&self) -> bool {
+        self.terms.is_empty() && self.products.is_empty()
     }
 }
 
@@ -1377,6 +1385,35 @@ mod tests {
             bound.params().collect::<Vec<_>>(),
             vec![EntityId(7), EntityId(9)]
         );
+    }
+
+    #[test]
+    fn affine_bound_params_include_both_product_operands() {
+        let bound = AffineBound {
+            constant: 0.0,
+            terms: vec![(1.0, EntityId(3))],
+            products: vec![(2.0, EntityId(5), EntityId(6))],
+        };
+        assert_eq!(
+            bound.params().collect::<Vec<_>>(),
+            vec![EntityId(3), EntityId(5), EntityId(6)]
+        );
+    }
+
+    #[test]
+    fn affine_bound_with_only_products_is_not_constant() {
+        let constant = AffineBound {
+            constant: 4.0,
+            terms: vec![],
+            products: vec![],
+        };
+        let product_only = AffineBound {
+            products: vec![(1.0, EntityId(5), EntityId(6))],
+            ..constant.clone()
+        };
+        assert!(constant.is_constant());
+        assert!(!product_only.is_constant());
+        assert!(!AffineBound::single(EntityId(1)).is_constant());
     }
 
     /// The byte-neutral load-bearing identity for `AffineBound::single`: any
