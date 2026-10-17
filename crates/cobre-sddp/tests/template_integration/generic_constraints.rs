@@ -530,9 +530,7 @@ fn generic_constraint_inactive_does_not_contribute_rows() {
 #[test]
 fn generic_constraint_thermal_le_row_bounds_and_csc_entry() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -550,10 +548,7 @@ fn generic_constraint_thermal_le_row_bounds_and_csc_entry() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -597,7 +592,7 @@ fn generic_constraint_thermal_le_row_bounds_and_csc_entry() {
 fn generic_constraint_thermal_le_slack_column_and_csc_entry() {
     use cobre_core::ResolvedGenericConstraintBounds;
     use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
+        ConstraintExpression, GenericConstraint, LinearTerm, PenaltyBasis, SlackConfig, VariableRef,
     };
     use std::collections::HashMap;
 
@@ -618,10 +613,10 @@ fn generic_constraint_thermal_le_slack_column_and_csc_entry() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: true,
-            penalty: Some(penalty),
-        },
+        slack: Some(SlackConfig {
+            penalty,
+            penalty_basis: PenaltyBasis::PerHour,
+        }),
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -675,9 +670,7 @@ fn generic_constraint_thermal_le_slack_column_and_csc_entry() {
 #[test]
 fn generic_constraint_thermal_ge_row_bounds() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -695,10 +688,7 @@ fn generic_constraint_thermal_ge_row_bounds() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -730,7 +720,7 @@ fn generic_constraint_thermal_ge_row_bounds() {
 fn generic_constraint_thermal_ge_slack_column_and_csc_entry() {
     use cobre_core::ResolvedGenericConstraintBounds;
     use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
+        ConstraintExpression, GenericConstraint, LinearTerm, PenaltyBasis, SlackConfig, VariableRef,
     };
     use std::collections::HashMap;
 
@@ -751,10 +741,10 @@ fn generic_constraint_thermal_ge_slack_column_and_csc_entry() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: true,
-            penalty: Some(penalty),
-        },
+        slack: Some(SlackConfig {
+            penalty,
+            penalty_basis: PenaltyBasis::PerHour,
+        }),
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -802,9 +792,7 @@ fn generic_constraint_thermal_ge_slack_column_and_csc_entry() {
 #[test]
 fn generic_constraint_two_sided_thermal_row_bounds_and_csc_entry() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -822,10 +810,7 @@ fn generic_constraint_two_sided_thermal_row_bounds_and_csc_entry() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -867,7 +852,7 @@ fn generic_constraint_two_sided_thermal_row_bounds_and_csc_entry() {
 #[test]
 fn generic_constraint_degenerate_band_thermal_two_slacks() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{ConstraintExpression, GenericConstraint, SlackConfig};
+    use cobre_core::{ConstraintExpression, GenericConstraint, PenaltyBasis, SlackConfig};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -879,10 +864,10 @@ fn generic_constraint_degenerate_band_thermal_two_slacks() {
         name: "gc_thermal_eq_slack".to_string(),
         description: None,
         expression: ConstraintExpression { terms: vec![] },
-        slack: SlackConfig {
-            enabled: true,
-            penalty: Some(penalty),
-        },
+        slack: Some(SlackConfig {
+            penalty,
+            penalty_basis: PenaltyBasis::PerHour,
+        }),
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -957,7 +942,7 @@ fn generic_constraint_degenerate_band_thermal_two_slacks() {
 #[test]
 fn generic_constraint_two_sided_thermal_two_slacks() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{ConstraintExpression, GenericConstraint, SlackConfig};
+    use cobre_core::{ConstraintExpression, GenericConstraint, PenaltyBasis, SlackConfig};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -969,10 +954,10 @@ fn generic_constraint_two_sided_thermal_two_slacks() {
         name: "gc_thermal_range_slack".to_string(),
         description: None,
         expression: ConstraintExpression { terms: vec![] },
-        slack: SlackConfig {
-            enabled: true,
-            penalty: Some(penalty),
-        },
+        slack: Some(SlackConfig {
+            penalty,
+            penalty_basis: PenaltyBasis::PerHour,
+        }),
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1052,7 +1037,7 @@ fn generic_constraint_two_sided_thermal_two_slacks() {
 #[test]
 fn generic_constraint_degenerate_band_gets_equality_row_and_two_slacks() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{ConstraintExpression, GenericConstraint, SlackConfig};
+    use cobre_core::{ConstraintExpression, GenericConstraint, PenaltyBasis, SlackConfig};
     use std::collections::HashMap;
 
     let thermal_entity_id = EntityId(2);
@@ -1064,10 +1049,10 @@ fn generic_constraint_degenerate_band_gets_equality_row_and_two_slacks() {
         name: format!("gc_{id}"),
         description: None,
         expression: ConstraintExpression { terms: vec![] },
-        slack: SlackConfig {
-            enabled: true,
-            penalty: Some(penalty),
-        },
+        slack: Some(SlackConfig {
+            penalty,
+            penalty_basis: PenaltyBasis::PerHour,
+        }),
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1103,9 +1088,7 @@ fn generic_constraint_two_hydros_sum_csc_entries() {
     use cobre_core::temporal::{
         Block, BlockMode, NoiseMethod, ScenarioSourceConfig, StageRiskConfig, StageStateConfig,
     };
-    use cobre_core::{
-        ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let h1_id = EntityId(5);
@@ -1302,10 +1285,7 @@ fn generic_constraint_two_hydros_sum_csc_entries() {
                 ),
             ],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1590,9 +1570,7 @@ fn one_hydro_system(
 #[allow(clippy::cast_possible_wrap)]
 fn generic_constraint_chronological_stage_net_storage_one_row() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{
-        BlockMode, ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{BlockMode, ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let n_blks = 3_usize;
@@ -1628,10 +1606,7 @@ fn generic_constraint_chronological_stage_net_storage_one_row() {
                 ),
             ],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1672,9 +1647,7 @@ fn generic_constraint_chronological_stage_net_storage_one_row() {
 #[allow(clippy::cast_possible_wrap)]
 fn generic_constraint_chronological_specific_block_ramp_one_row() {
     use cobre_core::ResolvedGenericConstraintBounds;
-    use cobre_core::{
-        BlockMode, ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
-    };
+    use cobre_core::{BlockMode, ConstraintExpression, GenericConstraint, LinearTerm, VariableRef};
     use std::collections::HashMap;
 
     let n_blks = 3_usize;
@@ -1711,10 +1684,7 @@ fn generic_constraint_chronological_specific_block_ramp_one_row() {
                 ),
             ],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1755,6 +1725,97 @@ fn generic_constraint_chronological_specific_block_ramp_one_row() {
         (initial_total + 1.0).abs() < f64::EPSILON,
         "expected -1.0 on S¹ (col 4), got {initial_total}"
     );
+}
+
+/// Objective coefficient of the slack on a soft `S ≤ 150 hm³` storage row, on a
+/// parallel stage of `n_blks` 720-hour blocks.
+fn storage_slack_objective(n_blks: usize, penalty_basis: cobre_core::PenaltyBasis) -> f64 {
+    use cobre_core::ResolvedGenericConstraintBounds;
+    use cobre_core::{
+        BlockMode, ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig, VariableRef,
+    };
+    use std::collections::HashMap;
+
+    let baseline = one_hydro_system(
+        n_blks,
+        BlockMode::Parallel,
+        None,
+        ResolvedGenericConstraintBounds::new(&HashMap::new(), std::iter::empty()),
+    );
+    let baseline_tpl = &build_templates_for(&baseline)[0];
+
+    let constraint = GenericConstraint {
+        id: EntityId(100),
+        name: "gc_storage_cap".to_string(),
+        description: None,
+        expression: ConstraintExpression {
+            terms: vec![LinearTerm::literal(
+                1.0,
+                VariableRef::HydroStorage {
+                    hydro_id: EntityId(5),
+                },
+            )],
+        },
+        slack: Some(SlackConfig {
+            penalty: 40.0,
+            penalty_basis,
+        }),
+        bound_lower_affine: None,
+        bound_upper_affine: None,
+    };
+    let id_map: HashMap<i32, usize> = [(100_i32, 0)].into_iter().collect();
+    let rows = vec![(100_i32, 0_i32, None::<i32>, None, Some(150.0_f64))];
+    let generic_bounds = ResolvedGenericConstraintBounds::new(&id_map, rows.into_iter());
+
+    let system = one_hydro_system(
+        n_blks,
+        BlockMode::Parallel,
+        Some(constraint),
+        generic_bounds,
+    );
+    let t = &build_templates_for(&system)[0];
+
+    assert_eq!(t.num_cols, baseline_tpl.num_cols + 1);
+    assert_eq!(t.num_rows, baseline_tpl.num_rows + 1);
+    let slack_col = baseline_tpl.num_cols;
+    let generic_row = baseline_tpl.num_rows;
+    let entry: f64 = csc_entries_at(t, slack_col, generic_row).iter().sum();
+    assert!(
+        (entry + 1.0).abs() < f64::EPSILON,
+        "`<=` slack must carry -1.0 on the storage row, got {entry}"
+    );
+    t.objective[slack_col]
+}
+
+/// derived: a `per_unit` slack costs `penalty / COST_SCALE_FACTOR` per hm³ short on
+/// any stage length; its `per_hour` twin costs `penalty × stage_hours / COST_SCALE_FACTOR`.
+#[test]
+#[allow(clippy::cast_precision_loss)]
+fn per_unit_storage_slack_price_ignores_stage_hours() {
+    use cobre_core::PenaltyBasis;
+
+    let penalty = 40.0_f64;
+    for n_blks in [1_usize, 3] {
+        let stage_hours = 720.0 * n_blks as f64;
+
+        let per_unit = storage_slack_objective(n_blks, PenaltyBasis::PerUnit);
+        let expected_per_unit = penalty / COST_SCALE_FACTOR;
+        assert!(
+            (per_unit - expected_per_unit).abs() < 1e-12,
+            "{n_blks} blocks: per_unit slack must cost {expected_per_unit}, got {per_unit}"
+        );
+
+        let per_hour = storage_slack_objective(n_blks, PenaltyBasis::PerHour);
+        let expected_per_hour = penalty * stage_hours / COST_SCALE_FACTOR;
+        assert!(
+            (per_hour - expected_per_hour).abs() < 1e-9,
+            "{n_blks} blocks: per_hour slack must cost {expected_per_hour}, got {per_hour}"
+        );
+        assert!(
+            (per_hour / per_unit - stage_hours).abs() < 1e-9,
+            "the per_hour twin must cost {stage_hours}× the per_unit slack"
+        );
+    }
 }
 
 // ── Parameter (stage, block) axis + symbolic RHS bound byte-identity twins ──
@@ -1852,7 +1913,7 @@ fn assert_desugaring_twin_builds_identical_lp(
 fn per_stage_block_coefficient_twin_matches_hand_flattened_literals() {
     use cobre_core::{
         ConstraintExpression, GenericConstraint, LinearTerm, ParameterKind,
-        ResolvedGenericConstraintBounds, ScalarParameter, SlackConfig, VariableRef,
+        ResolvedGenericConstraintBounds, ScalarParameter, VariableRef,
     };
     use std::collections::HashMap;
 
@@ -1879,10 +1940,7 @@ fn per_stage_block_coefficient_twin_matches_hand_flattened_literals() {
         name: "gc_block_coef".to_string(),
         description: None,
         expression: sugared_expr,
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -1926,10 +1984,7 @@ fn per_stage_block_coefficient_twin_matches_hand_flattened_literals() {
             name: format!("gc_lit_{id}"),
             description: None,
             expression: expr,
-            slack: SlackConfig {
-                enabled: false,
-                penalty: None,
-            },
+            slack: None,
             bound_lower_affine: None,
             bound_upper_affine: None,
         }
@@ -1965,7 +2020,7 @@ fn per_stage_block_coefficient_twin_matches_hand_flattened_literals() {
 fn symbolic_upper_bound_ref_twin_matches_literal_per_block_bounds() {
     use cobre_core::{
         AffineBound, ConstraintExpression, GenericConstraint, LinearTerm, ParameterKind,
-        ResolvedGenericConstraintBounds, ScalarParameter, SlackConfig, VariableRef,
+        ResolvedGenericConstraintBounds, ScalarParameter, VariableRef,
     };
     use std::collections::HashMap;
 
@@ -1981,10 +2036,6 @@ fn symbolic_upper_bound_ref_twin_matches_literal_per_block_bounds() {
             },
         )],
     };
-    let no_slack = SlackConfig {
-        enabled: false,
-        penalty: None,
-    };
 
     // Sugared: the reference lives on the constraint; the activation row's numeric
     // upper endpoint stays null, so the parameter's (stage, block) axis supplies it.
@@ -1993,7 +2044,7 @@ fn symbolic_upper_bound_ref_twin_matches_literal_per_block_bounds() {
         name: "gc_sym_cap".to_string(),
         description: None,
         expression: expr(),
-        slack: no_slack.clone(),
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: Some(AffineBound::single(EntityId(200))),
     };
@@ -2018,7 +2069,7 @@ fn symbolic_upper_bound_ref_twin_matches_literal_per_block_bounds() {
         name: "gc_sym_cap".to_string(),
         description: None,
         expression: expr(),
-        slack: no_slack,
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -2049,17 +2100,13 @@ fn symbolic_upper_bound_ref_twin_matches_literal_per_block_bounds() {
 fn symbolic_lower_bound_ref_stage_level_collapse_twin() {
     use cobre_core::{
         AffineBound, ConstraintExpression, GenericConstraint, ParameterKind,
-        ResolvedGenericConstraintBounds, ScalarParameter, SlackConfig,
+        ResolvedGenericConstraintBounds, ScalarParameter,
     };
     use std::collections::HashMap;
 
     let n_blks = 3_usize;
     let floor = 275.0_f64;
     let empty_expr = || ConstraintExpression { terms: vec![] };
-    let no_slack = SlackConfig {
-        enabled: false,
-        penalty: None,
-    };
 
     // Sugared: block-independent (empty) expression, stage-level floor reference,
     // numeric lower endpoint null in the activation row.
@@ -2068,7 +2115,7 @@ fn symbolic_lower_bound_ref_stage_level_collapse_twin() {
         name: "gc_sym_floor".to_string(),
         description: None,
         expression: empty_expr(),
-        slack: no_slack.clone(),
+        slack: None,
         bound_lower_affine: Some(AffineBound::single(EntityId(200))),
         bound_upper_affine: None,
     };
@@ -2091,7 +2138,7 @@ fn symbolic_lower_bound_ref_stage_level_collapse_twin() {
         name: "gc_sym_floor".to_string(),
         description: None,
         expression: empty_expr(),
-        slack: no_slack,
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -2196,9 +2243,7 @@ fn same_variable_repeat_merges_to_summed_coefficient() {
 /// expression terms at all, would produce.
 #[test]
 fn full_cancellation_drops_net_zero_column() {
-    use cobre_core::{
-        ConstraintExpression, GenericConstraint, ResolvedGenericConstraintBounds, SlackConfig,
-    };
+    use cobre_core::{ConstraintExpression, GenericConstraint, ResolvedGenericConstraintBounds};
     use std::collections::HashMap;
 
     let sugared = r#"{
@@ -2219,10 +2264,7 @@ fn full_cancellation_drops_net_zero_column() {
         name: "cancel".to_string(),
         description: None,
         expression: ConstraintExpression { terms: vec![] },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -2285,7 +2327,7 @@ fn paren_distribution_normalizes_to_hand_flattened_terms() {
 fn parquet_base_folds_with_inline_affine_remainder() {
     use cobre_core::{
         ConstraintExpression, GenericConstraint, LinearTerm, ResolvedGenericConstraintBounds,
-        SlackConfig, VariableRef,
+        VariableRef,
     };
     use std::collections::HashMap;
 
@@ -2313,10 +2355,7 @@ fn parquet_base_folds_with_inline_affine_remainder() {
                 },
             )],
         },
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };
@@ -2350,7 +2389,7 @@ fn parquet_base_folds_with_inline_affine_remainder() {
 fn parameter_rhs_places_two_distinct_terms_on_one_column() {
     use cobre_core::{
         ConstraintExpression, GenericConstraint, LinearTerm, ParameterKind,
-        ResolvedGenericConstraintBounds, ScalarParameter, SlackConfig, VariableRef,
+        ResolvedGenericConstraintBounds, ScalarParameter, VariableRef,
     };
     use std::collections::HashMap;
 
@@ -2403,10 +2442,7 @@ fn parameter_rhs_places_two_distinct_terms_on_one_column() {
         name: "param_rhs".to_string(),
         description: None,
         expression: flat_expr,
-        slack: SlackConfig {
-            enabled: false,
-            penalty: None,
-        },
+        slack: None,
         bound_lower_affine: None,
         bound_upper_affine: None,
     };

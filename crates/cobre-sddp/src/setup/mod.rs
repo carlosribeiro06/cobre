@@ -3296,7 +3296,7 @@ mod scalar_parameter_construction_tests {
     use cobre_core::scenario::SamplingScheme;
     use cobre_core::{
         AffineBound, ComputedParameter, ConstraintExpression, EntityId, GenericConstraint,
-        ParameterKind, ScalarParameter, SlackConfig, SystemBuilder,
+        ParameterKind, ScalarParameter, SystemBuilder,
     };
     use cobre_io::Config;
     use cobre_stochastic::{ClassSchemes, OpeningTreeInputs, build_stochastic_context};
@@ -3413,10 +3413,7 @@ mod scalar_parameter_construction_tests {
             name: "probe_constraint".to_string(),
             description: None,
             expression: ConstraintExpression { terms: vec![] },
-            slack: SlackConfig {
-                enabled: false,
-                penalty: None,
-            },
+            slack: None,
             bound_lower_affine: Some(AffineBound::single(EntityId(999))),
             bound_upper_affine: None,
         };
@@ -3450,10 +3447,7 @@ mod scalar_parameter_construction_tests {
             name: "probe_constraint".to_string(),
             description: None,
             expression: ConstraintExpression { terms: vec![] },
-            slack: SlackConfig {
-                enabled: false,
-                penalty: None,
-            },
+            slack: None,
             bound_lower_affine: Some(AffineBound::single(EntityId(999))),
             bound_upper_affine: None,
         };

@@ -904,7 +904,7 @@ mod basis_reconstruct_churn {
     };
     use cobre_solver::ActiveSolver;
 
-    use super::common::StubComm;
+    use super::common::{StubComm, enable_forward_warm_start};
 
     // ---------------------------------------------------------------------------
     // Path helpers
@@ -977,6 +977,8 @@ mod basis_reconstruct_churn {
 
         // Budget = 6 = 2 iters × 3 fwd-passes, so eviction first fires after iteration 2.
         config.training.cut_selection.max_active_per_stage = Some(6);
+        // The simplex pin measures forward basis reconstruction, so warm-start it.
+        enable_forward_warm_start(&mut config);
 
         let system = cobre_io::load_case(&case_dir).expect("load_case must succeed");
         let prepare_result = prepare_stochastic(
@@ -1581,7 +1583,7 @@ mod warm_start {
     };
     use cobre_solver::ActiveSolver;
 
-    use super::common::StubComm;
+    use super::common::{StubComm, enable_forward_warm_start};
 
     fn d01_case_dir() -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1910,8 +1912,9 @@ mod warm_start {
         const OTHER_STAGE: i32 = 0;
 
         let case_dir = d01_case_dir();
-        let config =
+        let mut config =
             cobre_io::parse_config(&case_dir.join("config.json")).expect("config must parse");
+        enable_forward_warm_start(&mut config);
 
         let mut setup_fresh = build_setup(&case_dir, &config);
         let comm = StubComm;
@@ -2505,8 +2508,8 @@ mod range_warm_start_determinism {
         ContractBlockBounds, DeficitSegment, EntityId, GenericConstraint, HydroBlockBounds,
         HydroPenalties, HydroStageBounds, LineBlockBounds, LineStagePenalties, LinearTerm,
         NcsStagePenalties, PenaltiesCountsSpec, PenaltiesDefaults, PumpingBlockBounds,
-        ResolvedBounds, ResolvedGenericConstraintBounds, ResolvedPenalties, SlackConfig,
-        SystemBuilder, ThermalBlockBounds, ThermalStageBounds, VariableRef,
+        ResolvedBounds, ResolvedGenericConstraintBounds, ResolvedPenalties, SystemBuilder,
+        ThermalBlockBounds, ThermalStageBounds, VariableRef,
     };
     use cobre_io::config::{
         Config, EstimationConfig, ExportsConfig, InflowNonNegativityConfig,
@@ -2565,13 +2568,6 @@ mod range_warm_start_determinism {
         }
     }
 
-    fn no_slack() -> SlackConfig {
-        SlackConfig {
-            enabled: false,
-            penalty: None,
-        }
-    }
-
     // ---------------------------------------------------------------------------
     // 3-constraint fixture: a range row (binds at upper) plus two loose siblings
     // ---------------------------------------------------------------------------
@@ -2588,7 +2584,7 @@ mod range_warm_start_determinism {
                 name: "cap_loose".to_string(),
                 description: None,
                 expression: thermal_generation_expr(),
-                slack: no_slack(),
+                slack: None,
                 bound_lower_affine: None,
                 bound_upper_affine: None,
             },
@@ -2597,7 +2593,7 @@ mod range_warm_start_determinism {
                 name: "band".to_string(),
                 description: None,
                 expression: thermal_generation_expr(),
-                slack: no_slack(),
+                slack: None,
                 bound_lower_affine: None,
                 bound_upper_affine: None,
             },
@@ -2606,7 +2602,7 @@ mod range_warm_start_determinism {
                 name: "floor_trivial".to_string(),
                 description: None,
                 expression: thermal_generation_expr(),
-                slack: no_slack(),
+                slack: None,
                 bound_lower_affine: None,
                 bound_upper_affine: None,
             },
@@ -2641,7 +2637,7 @@ mod range_warm_start_determinism {
                 name: "band".to_string(),
                 description: None,
                 expression: thermal_generation_expr(),
-                slack: no_slack(),
+                slack: None,
                 bound_lower_affine: None,
                 bound_upper_affine: None,
             }];
@@ -2661,7 +2657,7 @@ mod range_warm_start_determinism {
                     name: "band_lower".to_string(),
                     description: None,
                     expression: thermal_generation_expr(),
-                    slack: no_slack(),
+                    slack: None,
                     bound_lower_affine: None,
                     bound_upper_affine: None,
                 },
@@ -2670,7 +2666,7 @@ mod range_warm_start_determinism {
                     name: "band_upper".to_string(),
                     description: None,
                     expression: thermal_generation_expr(),
-                    slack: no_slack(),
+                    slack: None,
                     bound_lower_affine: None,
                     bound_upper_affine: None,
                 },

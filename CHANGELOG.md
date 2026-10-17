@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** an enabled generic-constraint slack must declare
+  `slack.penalty_basis`. `per_hour` charges the penalty for every hour the
+  row covers, as before: the stage's total hours for a stage-level row and
+  the block's hours for a block row. Use it for a row in MW or m³/s.
+  `per_unit` charges the penalty once per unit of violation, whatever the
+  stage length. Use it for a row in MWh or hm³. To keep a study's current
+  costs, add `"penalty_basis": "per_hour"` to every enabled slack.
+- **BREAKING:** a disabled generic-constraint slack that sets `penalty` or
+  `penalty_basis` is rejected. These fields used to be ignored.
+- `generic_constraints/resolved_echo.parquet` has a new
+  `slack_penalty_basis` column, null for a hard constraint.
+- HiGHS forward and simulation solves are cold by default: `use_warm_start`
+  now defaults to `false` for those phases, so their LPs ignore the stored
+  basis and run presolve. Backward solves still warm-start. Set
+  `"use_warm_start": true` in `training.solver.forward` or `simulation.solver`
+  to restore warm-starting for that phase. A cold solve can stop at a
+  different but equally optimal vertex, so simulated duals and the final
+  lower bound may differ slightly from 0.18.0 on the same inputs.
+- HiGHS retry escalation keeps the phase's `use_warm_start` at every retry
+  level; levels 5-11 previously reset it to the solver default.
+- `cobre run` writes its banner, progress lines and summaries to stdout;
+  warnings and errors stay on stderr, and progress bars on an interactive
+  terminal still draw on stderr. Scripts and job logs that read the run report
+  from stderr must read stdout instead. `--color` now applies to both streams.
+- The training gap in the progress lines and the training summary is printed
+  with 5 decimals instead of 1, so small gaps no longer round to `0.0%`.
+
+### Fixed
+
+- Under MPI, training multiplied its LP-solve count by the number of ranks, and
+  the first-try/retried/failed split and the forward solve seconds with it. The
+  training summary and `solve_stats` in `training/metadata.json` now report the
+  same counts for any rank count, and the split adds up to the total.
+- `cobre run` under MPI no longer panics when the forward passes do not
+  divide evenly across ranks. A rank holding fewer passes than another could
+  index its stored warm-start bases out of bounds, and the job then hung. Such
+  a run now writes the same outputs as a single-process run.
+- A rank that panics during `cobre run` under MPI aborts the whole job
+  with exit code 101. The other ranks used to wait in a collective until the
+  job was killed.
+
 ## [0.18.0] - 2026-10-07
 
 ### Added

@@ -3681,8 +3681,8 @@ fn d43_storage_only_cut_converges() {
 
 /// D43's stage 0 starts exactly on a month boundary, so the windowed accumulator
 /// seed is inert (`accum = weight = 0.0`, per `derive_inflow_seeds`) and the
-/// windowed cast collapses to the pre-windowing month lookup — an observation-free
-/// case that must reproduce its pre-windowing `final_lb` bit-for-bit. The `to_bits`
+/// windowed cast collapses to a plain month lookup — an observation-free case
+/// whose `final_lb` is pinned bit-for-bit. The `to_bits`
 /// golden is HiGHS-only (`#[cfg]`-gated): bit-exactness is backend-specific — CLP's
 /// simplex reaches a different-but-valid vertex — so removing the gate breaks the
 /// CLP suite. D43's `assert_cost` above tolerance-pins the same value for both
@@ -3693,14 +3693,14 @@ fn d43_storage_only_cut_converges() {
     ignore = "slow: run with --features slow-tests"
 )]
 #[test]
-fn test_observation_free_case_bit_exact_pre_epic() {
+fn test_observation_free_case_final_lb_bit_exact() {
     let case_dir = Path::new("../../examples/deterministic/d43-storage-only-cut");
     let result = run_deterministic(case_dir);
 
     assert_eq!(
         result.final_lb.to_bits(),
-        0x4166_3c9e_e81a_8359u64,
-        "D43 final_lb must reproduce its pre-windowing value bit-for-bit: got {} ({:#018x})",
+        0x4166_3c9e_e81a_8358u64,
+        "D43 final_lb must reproduce its pinned value bit-for-bit: got {} ({:#018x})",
         result.final_lb,
         result.final_lb.to_bits()
     );

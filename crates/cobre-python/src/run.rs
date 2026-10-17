@@ -92,6 +92,7 @@ use cobre_io::write_training_results;
 use cobre_sddp::HydroFitTimings;
 use cobre_sddp::SddpError;
 use cobre_sddp::SimulationWeighting;
+use cobre_sddp::StatsFoldMode;
 use cobre_sddp::TrainingResult;
 use cobre_sddp::aggregate_simulation;
 use cobre_sddp::aggregate_solver_stats_log;
@@ -311,7 +312,7 @@ fn build_training_phase_result(
         .map(|r| u64::from(r.lp_solves))
         .sum();
     let (first_try, retried, failed, forward_solve_seconds, backward_solve_seconds) =
-        aggregate_solver_stats_log(&training_result.solver_stats_log, None);
+        aggregate_solver_stats_log(&training_result.solver_stats_log, StatsFoldMode::AllEntries);
     training_output.training_solve_stats = MetadataTrainingSolveStats {
         total_lp_solves: Some(total_lp_solves),
         first_try: Some(first_try),
@@ -1538,7 +1539,7 @@ mod tests {
     use cobre_sddp::config::ShutdownSource;
     use cobre_sddp::setup::prepare_stochastic;
     use cobre_sddp::{
-        SddpError, SolverStatsDelta, SolverStatsLogEntry, aggregate_solver_stats_log,
+        SddpError, SolverStatsDelta, SolverStatsLogEntry, StatsFoldMode, aggregate_solver_stats_log,
     };
 
     use cobre_core::TrainingEvent;
@@ -1889,7 +1890,7 @@ mod tests {
         // sourced at the call site from the per-iteration convergence records
         // to mirror the CLI (see `aggregate_solver_stats_log`'s doc).
         let (first_try, retried, failed, forward_seconds, backward_seconds) =
-            aggregate_solver_stats_log(&stats_log, None);
+            aggregate_solver_stats_log(&stats_log, StatsFoldMode::AllEntries);
 
         // first_try = 7 + 2; retried = (9-7) + (4-2) = 4; failed = 1 + 0.
         assert_eq!(first_try, 9);

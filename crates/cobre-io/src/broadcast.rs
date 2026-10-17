@@ -348,8 +348,7 @@ mod tests {
     #[test]
     fn test_round_trip_generic_constraint_bound_ref() {
         use cobre_core::{
-            AffineBound, ConstraintExpression, GenericConstraint, LinearTerm, SlackConfig,
-            VariableRef,
+            AffineBound, ConstraintExpression, GenericConstraint, LinearTerm, VariableRef,
         };
 
         let gc = GenericConstraint {
@@ -366,10 +365,7 @@ mod tests {
                     },
                 )],
             },
-            slack: SlackConfig {
-                enabled: false,
-                penalty: None,
-            },
+            slack: None,
             bound_lower_affine: None,
             bound_upper_affine: Some(AffineBound {
                 constant: 12.0,
