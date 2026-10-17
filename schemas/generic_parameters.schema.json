@@ -166,7 +166,7 @@
           "type": "object"
         },
         {
-          "description": "Maximum stored energy: `integrated_accumulated_productivity * (V_hi -\nV_lo)` over the hydro plant's physical storage range (stage-invariant).\nUnit is productivity `[MW/(m3/s)]` times volume `[hm3]` — the same unit\nas a productivity-times-storage-volume constraint term, not `MWh`.",
+          "description": "Maximum stored energy: `integrated_accumulated_productivity * (V_hi -\nV_lo)` over the hydro plant's physical storage range (stage-invariant).\nUnit is productivity `[MW/(m3/s)]` times volume `[hm3]` — the same unit\nas a productivity-times-storage-volume constraint term, not `MWh`\n(`max_stored_energy_mwh` is the `MWh` form).",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
@@ -184,7 +184,7 @@
           "type": "object"
         },
         {
-          "description": "Scaled integrated accumulated productivity for stored-energy constraints.\n\nReturns `ρ_acum_integrado × ENERGY_FACTOR` where\n`ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.\n\nUnit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.\n\nUsed as the coefficient in `VminOP` (minimum stored energy) constraints:\n`Σ scaled_productivity(h) × useful_volume_final(h) ≥ E_min [MWh]`.",
+          "description": "`integrated_accumulated_productivity` in `[MWh/hm3]` (times `10⁶/3600`):\ntimes a useful volume `[hm3]` it gives stored energy `[MWh]` (cascade scope).",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
@@ -202,7 +202,7 @@
           "type": "object"
         },
         {
-          "description": "Scaled maximum stored energy for `VminOP` constraint bounds.\n\nComputes `ρ_acum_integrado × (Vmax - Vmin) × ENERGY_FACTOR`\nwhere `ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.\n\nUnit: `[MWh]`. This is `EARM_max`, the maximum storable energy for the plant.",
+          "description": "`max_stored_energy` in `[MWh]` (times `10⁶/3600`): the energy stored over\nthe plant's physical storage range, valued with the cascade's productivity.",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",
@@ -220,7 +220,7 @@
           "type": "object"
         },
         {
-          "description": "Scaled integrated equivalent productivity for stored-energy constraints (own scope).\n\nReturns `ρ_eq_integrado × ENERGY_FACTOR` where\n`ENERGY_FACTOR = 10⁶ / 3600 ≈ 277.78`.\n\nUnit: `[MWh/hm³]`. Multiply by useful volume `[hm³]` to get stored energy `[MWh]`.\n\nUnlike `IntegratedAccumulatedProductivityMwhPerHm3` (cascade scope), this variant\nconsiders only the plant's own head effect, not the cascade contribution.",
+          "description": "`integrated_equivalent_productivity` in `[MWh/hm3]` (times `10⁶/3600`):\ntimes a useful volume `[hm3]` it gives the plant's own stored energy\n`[MWh]`, without the cascade below it.",
           "properties": {
             "hydro_id": {
               "$ref": "#/$defs/EntityId",

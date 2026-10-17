@@ -1,9 +1,9 @@
 {
-  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/generic_constraints.schema.json",
+  "$schema": "https://raw.githubusercontent.com/cobre-rs/cobre/refs/heads/main/schemas/generic_parameters.schema.json",
   "scalar_parameters": [
     {
       "id": 1,
-      "name": "rho_scaled_h0",
+      "name": "rho_mwh_h0",
       "kind": "computed",
       "computed_spec": {
         "tag": "integrated_accumulated_productivity_mwh_per_hm3",
@@ -12,7 +12,7 @@
     },
     {
       "id": 2,
-      "name": "rho_scaled_h1",
+      "name": "rho_mwh_h1",
       "kind": "computed",
       "computed_spec": {
         "tag": "integrated_accumulated_productivity_mwh_per_hm3",
